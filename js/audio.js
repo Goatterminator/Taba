@@ -82,6 +82,10 @@ const SOUNDS = {
   heart: () => { tone(58, 0.11, { type: 'sine', vol: 0.55 }); tone(52, 0.13, { type: 'sine', vol: 0.45, delay: 0.17 }); },
   tick: () => tone(1800, 0.025, { type: 'square', vol: 0.05 }),
   snitch: () => { tone(880, 0.1, { type: 'triangle', vol: 0.18 }); tone(1175, 0.16, { type: 'triangle', vol: 0.18, delay: 0.1 }); },
+  lock: () => { tone(1400, 0.04, { type: 'square', vol: 0.12 }); tone(700, 0.08, { type: 'square', vol: 0.14, delay: 0.09 }); },
+  knock: () => { for (let i = 0; i < 3; i++) { tone(130, 0.07, { type: 'sine', vol: 0.4, to: 70, delay: i * 0.16 }); noise(0.04, { vol: 0.15, freq: 400, q: 1, delay: i * 0.16 }); } },
+  quiz: () => { tone(659, 0.14, { type: 'triangle', vol: 0.2 }); tone(523, 0.14, { type: 'triangle', vol: 0.2, delay: 0.15 }); tone(392, 0.3, { type: 'triangle', vol: 0.2, delay: 0.3 }); },
+  goal: () => [659, 784, 988].forEach((f, i) => tone(f, 0.16, { type: 'triangle', vol: 0.18, delay: i * 0.09 })),
   bell: () => { for (let i = 0; i < 10; i++) tone(1568, 0.09, { type: 'square', vol: 0.09, delay: i * 0.1 }); },
   strike: () => { tone(196, 0.5, { type: 'sawtooth', vol: 0.3 }); tone(207, 0.5, { type: 'sawtooth', vol: 0.3 }); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.22, delay: i * 0.13 })),
@@ -92,3 +96,102 @@ export function play(name) {
   if (muted || !ctx || ctx.state !== 'running') return;
   try { SOUNDS[name]?.(); } catch { /* ignore */ }
 }
+
+// ---- háttérzene: generált, „lopakodós” téma, ami a feszültséggel együtt sűrűsödik ----
+const M = { on: true, mode: 'off', tension: 0, hurry: false, step: 0, next: 0, gain: null, timer: null };
+const D2 = 73.42, D4 = 293.66;
+const st = (base, semis) => base * Math.pow(2, semis / 12);
+const _ = null;
+const BASS = [
+  [0, _, _, 0, _, _, 3, _, 5, _, _, 5, _, 3, _, _],
+  [0, _, _, 0, _, _, 3, _, 5, _, 6, _, 5, _, 3, _],
+  [-4, _, _, -4, _, _, -2, _, 0, _, _, 0, _, -2, _, _],
+  [-5, _, _, -5, _, _, -1, _, 2, _, _, 2, _, 1, _, -1],
+];
+const LEAD = [
+  [_, _, _, _, _, _, _, _, 0, _, 3, _, 5, _, 3, _],
+  [_, _, 7, _, 5, _, 3, _, _, _, _, _, _, _, _, _],
+  [_, _, _, _, _, _, _, _, -4, _, 0, _, 3, _, 0, _],
+  [_, _, 4, _, 1, _, -1, _, _, _, -5, _, -1, _, 1, _],
+];
+const PADS = [[12, 15, 19], [12, 15, 19], [8, 12, 15], [7, 11, 14]]; // Dm, Dm, B, A (D2-höz képest)
+
+function mNote(freq, t, dur, { type = 'triangle', vol = 0.1, lp = 0, attack = 0.005 } = {}) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  let node = o;
+  if (lp) { const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; o.connect(f); node = f; }
+  node.connect(g).connect(M.gain);
+  o.start(t); o.stop(t + dur + 0.03);
+}
+let noiseBuf = null;
+function mNoise(t, dur, vol, freq, type = 'highpass') {
+  if (!noiseBuf) {
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+  const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  src.connect(f).connect(g).connect(M.gain);
+  src.start(t); src.stop(t + dur + 0.02);
+}
+function mKick(t, vol) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.2);
+  o.connect(g).connect(M.gain); o.start(t); o.stop(t + 0.22);
+}
+function playStep(step, t, dur) {
+  const bar = (step >> 4) % 4, i = step & 15;
+  const ten = M.tension;
+  if (M.mode === 'menu') {
+    if (i === 0) for (const s of PADS[bar]) mNote(st(D2, s), t, dur * 15, { type: 'sine', vol: 0.045, attack: 0.3 });
+    if (i === 0 || i === 6 || i === 8) mNote(st(D2, BASS[bar][0]), t, dur * 3, { type: 'sine', vol: 0.14 });
+    if (i === 4 || i === 12) mNoise(t, 0.04, 0.02, 7000);
+    const l = LEAD[bar][i];
+    if (l != null && bar % 2 === 0) mNote(st(D4, l), t, 0.3, { type: 'triangle', vol: 0.035 });
+    return;
+  }
+  // játék: basszus + ütősök mindig, a többi a feszültségtől függ
+  const b = BASS[bar][i];
+  if (b != null) mNote(st(D2, b), t, dur * 1.8, { type: 'triangle', vol: 0.2, lp: 500 + ten * 500 });
+  if (i === 0 || i === 8 || (ten > 0.5 && i === 10)) mKick(t, 0.3);
+  if (i === 4 || i === 12) mNoise(t, 0.07, 0.06, 1800, 'bandpass');
+  if (i % 2 === 0) mNoise(t, i === 14 ? 0.09 : 0.03, i % 4 === 2 ? 0.035 : 0.02, 8000);
+  else if (ten > 0.45) mNoise(t, 0.02, 0.015, 9000);
+  const l = LEAD[bar][i];
+  if (l != null && ten > 0.2) mNote(st(D4, l), t, 0.22, { type: 'triangle', vol: 0.06 + ten * 0.03 });
+  if (ten > 0.6) mNote(st(D4, i % 2 ? 8 : 7), t, dur * 0.8, { type: 'square', vol: 0.018 + (ten - 0.6) * 0.03, lp: 2500 });
+  if (M.hurry && i % 4 === 0) mNote(st(D4, 12), t, 0.05, { type: 'square', vol: 0.03 });
+}
+function sched() {
+  if (!ctx || ctx.state !== 'running') return;
+  if (muted || !M.on || M.mode === 'off' || document.hidden) { M.next = ctx.currentTime + 0.12; return; }
+  if (M.next < ctx.currentTime) M.next = ctx.currentTime + 0.05;
+  while (M.next < ctx.currentTime + 0.25) {
+    const bpm = M.mode === 'menu' ? 76 : 98 + 16 * M.tension + (M.hurry ? 14 : 0);
+    const dur = 60 / bpm / 4;
+    playStep(M.step, M.next, dur);
+    M.next += dur;
+    M.step = (M.step + 1) % 64;
+  }
+}
+// mode: 'menu' | 'play' | 'off'; tension: 0..1
+export function music(mode, tension = 0, hurry = false) {
+  if (mode !== M.mode && (mode === 'play' || M.mode === 'play')) M.step = 0;
+  M.mode = mode; M.hurry = hurry;
+  M.tension += (Math.max(0, Math.min(1, tension)) - M.tension) * 0.05;
+  if (!M.timer && ctx) {
+    M.gain = ctx.createGain();
+    M.gain.gain.value = 0.55;
+    M.gain.connect(ctx.destination);
+    M.timer = setInterval(sched, 50);
+  }
+}
+export function setMusicEnabled(v) { M.on = !!v; }

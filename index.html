@@ -37,6 +37,7 @@
 
     <div id="status" class="pill"><span id="tabaSt"></span></div>
     <div id="evt" hidden><b></b><span></span></div>
+    <ul id="goals"></ul>
     <div id="combo" hidden></div>
     <div id="toasts"></div>
     <div id="labels"><div id="bubble" class="bubble" hidden></div></div>
@@ -49,6 +50,17 @@
     <button id="btnAct" class="rb" disabled><span id="actLabel">AKCIÓ</span></button>
     <button id="btnUse" class="rb" hidden>DOB</button>
     <button id="btnDrop" class="rb" hidden>ELDOB</button>
+    <button id="btnCrouch" class="rb">GUGGOL</button>
+
+    <!-- Felelés: Taba kérdez, válaszolni kell -->
+    <div id="quizUI" hidden>
+      <div class="quizCard">
+        <div class="quizHead">FELELÉS</div>
+        <p id="quizQ"></p>
+        <div id="quizOpts"></div>
+        <div id="quizBar"><div></div></div>
+      </div>
+    </div>
 
     <!-- Rajzolás Taba laptopján: ami ide kerül, az megy ki a vászonra -->
     <div id="drawUI" hidden>
@@ -87,6 +99,7 @@
       <p id="menuMsg" class="msg" hidden></p>
       <div class="row small">
         <button id="btnHelp" class="link">Hogyan kell játszani?</button>
+        <button id="btnMusic" class="link">Zene: be</button>
         <button id="btnInstall" class="link" hidden>Telepítés a telefonra</button>
       </div>
       <p class="tiny">Fektetett telefonnal a legjobb. iPhone-on: Megosztás → „Főképernyőhöz adás”.</p>
@@ -151,6 +164,10 @@
         <li><b>A stréber</b> (szemüveges, mellényes osztálytárs) figyel: ha a közelében szabotálsz, jelentkezik és szól Tabának. Egy papírgalacsinnal egy időre elhallgattathatod.</li>
         <li><b>Taba hall is:</b> a hangos dolgokra (kapcsoló, szekrény, ablak, biztosíték) a közelben odafordul. Elfoglaltan is lát pár métert.</li>
         <li><b>E-napló:</b> a laptopján átírhatod a jegyeket – sokat ér, de hosszú és veszélyes. <b>Tűzjelző</b> az ajtó mellett: egyszer használható, Taba kirohan, de utána nagyon éber lesz.</li>
+        <li><b>Guggolás:</b> guggolva a padok eltakarnak Taba elől, és a stréber is csak közelről vesz észre – cserébe lassabb vagy.</li>
+        <li><b>Felelés:</b> Taba néha kihív valakit. Ha téged, 8 másodperced van visszaérni a helyedre, különben lebukás. Jó válasz után egy ideig kevésbé gyanakszik rád, rossz után jobban figyel.</li>
+        <li><b>Kizárás:</b> ha Taba kiment a teremből, rázárhatod az ajtót – amíg kopog, szabad a pálya.</li>
+        <li><b>Kihívások:</b> minden órán három bónuszfeladat van (jobb oldalt fent), pontot és érmét érnek.</li>
         <li><b>Kombó:</b> ha gyorsan egymás után szívatsz, minden következő több pontot ér.</li>
         <li><b>Váratlan események:</b> Windows-frissítés, anyukája telefonál, a hangosbemondó kihívja – ilyenkor Taba figyelme máshol jár. Használd ki!</li>
         <li>Minél idegesebb Taba (pirosodik a feje), annál gyorsabban mozog és annál gyakrabban néz fel.</li>

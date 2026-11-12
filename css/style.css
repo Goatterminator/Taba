@@ -258,3 +258,29 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
 #end .card { max-height: calc(100dvh - 24px); overflow: auto; }
 @keyframes evtIn { 0% { opacity: 0; transform: translate(-50%, -10px); } 8% { opacity: 1; transform: translate(-50%, 0); } 85% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes comboIn { 0% { opacity: 0; transform: scale(1.8) rotate(-4deg); } 12% { opacity: 1; transform: scale(1) rotate(-4deg); } 75% { opacity: 1; } 100% { opacity: 0; transform: rotate(-4deg); } }
+
+/* ---- guggolás, kihívások, felelés ---- */
+#btnCrouch { right: calc(30px + var(--sar)); bottom: calc(130px + var(--sab)); width: 60px; height: 60px; font-size: 10px; }
+#btnCrouch.on { background: var(--yellow); color: #2b2203; border-color: var(--yellow); }
+#goals {
+  position: absolute; right: calc(10px + var(--sar)); top: calc(50px + var(--sat)); margin: 0; padding: 6px 10px; list-style: none;
+  background: var(--ink); border-radius: 8px; font-size: 11.5px; line-height: 1.5; pointer-events: none; max-width: 230px;
+}
+#goals li { display: flex; gap: 6px; align-items: baseline; opacity: 0.92; }
+#goals li::before { content: ""; flex: 0 0 9px; height: 9px; border: 1.5px solid rgba(255, 255, 255, 0.6); border-radius: 2px; transform: translateY(1px); }
+#goals li.done { color: var(--green); text-decoration: line-through; opacity: 0.75; }
+#goals li.done::before { background: var(--green); border-color: var(--green); }
+#quizUI { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; background: rgba(8, 10, 14, 0.55); padding: 12px; }
+.quizCard { width: min(520px, 100%); background: linear-gradient(160deg, var(--board-2), var(--board)); border: 6px solid var(--wood); border-radius: 12px; padding: 14px 16px; }
+.quizHead { font-size: 12px; letter-spacing: 0.14em; color: var(--yellow); font-weight: 800; }
+#quizQ { margin: 4px 0 10px; font-size: 18px; font-weight: 700; text-wrap: balance; }
+#quizOpts { display: grid; gap: 7px; }
+#quizOpts button { padding: 11px 12px; border-radius: 9px; border: 1.5px solid rgba(244, 241, 230, 0.5); background: rgba(0, 0, 0, 0.28); color: var(--chalk); font: inherit; font-size: 15px; font-weight: 600; text-align: left; cursor: pointer; }
+#quizOpts button.ok { background: #15803d; border-color: #15803d; }
+#quizOpts button.bad { background: #b91c1c; border-color: #b91c1c; }
+#quizBar { height: 5px; margin-top: 10px; border-radius: 4px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+#quizBar div { height: 100%; width: 100%; background: var(--yellow); }
+#evt.mine { border-left-color: var(--red); }
+#evt.mine b { color: var(--red); }
+@media (max-width: 620px) { #goals { font-size: 10.5px; max-width: 150px; top: calc(86px + var(--sat)); } }
+@media (max-height: 420px) { #quizQ { font-size: 16px; } #quizOpts button { padding: 8px 10px; font-size: 14px; } }

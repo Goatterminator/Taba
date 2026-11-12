@@ -3,7 +3,7 @@ import { World, studentLook, DRAW_COLORS } from './world.js';
 import { Sim } from './sim.js';
 import { Controls } from './controls.js';
 import { createNet, makeCode } from './net.js';
-import { play, unlockAudio, setMuted } from './audio.js';
+import { play, unlockAudio, setMuted, music, setMusicEnabled } from './audio.js';
 import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js';
 
 const $ = (id) => document.getElementById(id);
@@ -38,6 +38,11 @@ let target = null, actDown = false;
 let lastSim = performance.now(), lastSnap = 0, lastPos = 0, lastRing = 0, walkT = 0;
 let muted = store.get('taba.muted') === '1';
 let faceT = 0, shopSel = null;
+let crouch = false, quizOpen = false, quizSent = false, tension = 0;
+let musicOn = store.get('taba.music') !== '0';
+setMusicEnabled(musicOn);
+// az első érintésre indul a hang (a böngészők csak így engedik)
+addEventListener('pointerdown', () => unlockAudio(), { once: true });
 
 // ---- érmék és skinek (a készüléken tárolva) ----------------------------------
 const wallet = {
@@ -123,6 +128,9 @@ $('btnJoin').onclick = () => {
   n.onClose = () => { if (net === n) { leave(); menuMsg('A szoba megszűnt (a gazdája kilépett).'); } };
 };
 $('btnHelp').onclick = () => show('help');
+const musicLabel = () => { $('btnMusic').textContent = 'Zene: ' + (musicOn ? 'be' : 'ki'); };
+$('btnMusic').onclick = () => { musicOn = !musicOn; setMusicEnabled(musicOn); store.set('taba.music', musicOn ? '1' : '0'); musicLabel(); unlockAudio(); };
+musicLabel();
 
 // ---- bolt ---------------------------------------------------------------
 function renderShop() {
@@ -203,6 +211,8 @@ function enterLobby() {
 }
 function enterPlay() {
   mode = 'play';
+  setCrouch(false); me.eye = EYE;
+  quizOpen = false; $('quizUI').hidden = true;
   show(null);
   $('hud').hidden = false;
   const p = view.players[myId];
@@ -218,6 +228,7 @@ function enterPlay() {
 }
 function enterEnd() {
   closeDraw();
+  quizOpen = false; $('quizUI').hidden = true;
   mode = 'end';
   ctl.enabled = false; ctl.release();
   $('hud').hidden = true;
@@ -295,8 +306,9 @@ function combo(n) {
   play('combo');
 }
 let evtTimer = 0;
-function eventBanner(title, desc) {
+function eventBanner(title, desc, mine) {
   const el = $('evt');
+  el.classList.toggle('mine', !!mine);
   el.querySelector('b').textContent = title;
   el.querySelector('span').textContent = desc;
   el.hidden = true; void el.offsetWidth; el.hidden = false;
@@ -306,6 +318,7 @@ function eventBanner(title, desc) {
 
 function leave() {
   closeDraw();
+  quizOpen = false; $('quizUI').hidden = true;
   if (net) { const n = net; net = null; n.close(); }
   sim = null; role = null; myId = '_';
   preview = makePreview();
@@ -351,7 +364,12 @@ function handleEvent(ev) {
       if (ev.pid === myId) { try { navigator.vibrate?.([60, 40, 60]); } catch { /* ignore */ } }
       break;
     case 'combo': combo(ev.n); break;
-    case 'evt': eventBanner(ev.t, ev.d); world.npcReact('watch', 2); break;
+    case 'evt':
+      eventBanner(ev.t, ev.d, ev.pid === myId);
+      world.npcReact('watch', 2);
+      if (ev.pid === myId) { try { navigator.vibrate?.([100, 50, 100, 50, 100]); } catch { /* ignore */ } }
+      break;
+    case 'goal': toast('Kihívás teljesítve: ' + ev.m, 'good'); play('goal'); break;
     case 'shake': world.shake(ev.a); break;
     case 'toast': if (!ev.pid || ev.pid === myId) toast(ev.m, ev.k); break;
     case 'say': {
@@ -405,6 +423,8 @@ function useItem() {
 ctl.onAct = setAct;
 ctl.onUse = useItem;
 ctl.onDrop = () => { if (mode === 'play') send({ t: 'drop' }); };
+function setCrouch(v) { crouch = v; $('btnCrouch').classList.toggle('on', crouch); }
+ctl.onCrouch = () => { if (mode === 'play') setCrouch(!crouch); };
 const hold = (el, fn) => {
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ } fn(true); });
   for (const n of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(n, (e) => { e.preventDefault(); fn(false); });
@@ -413,6 +433,7 @@ const hold = (el, fn) => {
 hold($('btnAct'), setAct);
 hold($('btnUse'), (d) => d && useItem());
 hold($('btnDrop'), (d) => d && send({ t: 'drop' }));
+hold($('btnCrouch'), (d) => d && setCrouch(!crouch));
 
 // ---- rajzolás a laptopon --------------------------------------------------
 let drawSuppress = false; // a saját bezárás után várjuk meg, míg a szerver is lezárja
@@ -503,11 +524,40 @@ function syncDraw(p) {
 }
 addEventListener('resize', () => { if (drawOpen) sizeDraw(); });
 
+// ---- felelés ---------------------------------------------------------------
+function syncQuiz() {
+  const Q = view.quiz;
+  const mine = Q && Q.pid === myId && (Q.phase === 'ask' || Q.phase === 'done');
+  if (!mine) {
+    if (quizOpen) { quizOpen = false; $('quizUI').hidden = true; if (mode === 'play' && !drawOpen) ctl.enabled = true; }
+    return;
+  }
+  if (!quizOpen) {
+    quizOpen = true; quizSent = false;
+    ctl.enabled = false; ctl.release(); setAct(false);
+    $('quizQ').textContent = Q.q;
+    const box = $('quizOpts');
+    box.textContent = '';
+    Q.opts.forEach((txt, i) => {
+      const b = document.createElement('button');
+      b.textContent = txt;
+      b.onclick = () => { if (quizSent) return; quizSent = true; b.classList.add('sel'); send({ t: 'answer', i }); };
+      box.appendChild(b);
+    });
+    $('quizUI').hidden = false;
+  }
+  $('quizBar').firstElementChild.style.width = (Q.phase === 'ask' ? Math.max(0, Q.t / 10) * 100 : 0) + '%';
+  if (Q.phase === 'done' && Q.right != null) {
+    [...$('quizOpts').children].forEach((b, i) => { if (i === Q.right) b.classList.add('ok'); else if (b.classList.contains('sel')) b.classList.add('bad'); });
+  }
+}
+
 // ---- HUD ----------------------------------------------------------------
 const ST = {
   laptop: 'laptopozik', projector: 'a projektorral bajlódik', board: 'a táblára ír', fix: 'javít valamit',
   lecture: 'magyaráz – figyel', walk: 'járkál – figyel', warn: 'gyanakszik…', glance: 'FELNÉZ!', look: 'odanéz!',
   count: 'számol', stun: 'kiakadt', stuck: 'odaragadt a székhez',
+  quiz: 'feleltet', knock: 'kopog',
   yell: 'ORDIBÁL', slip: 'a földön fekszik', scared: 'felugrott', drag: 'visszavonszol valakit', phone: 'telefonál az anyukájával',
 };
 const cache = {};
@@ -529,7 +579,10 @@ function updateHud() {
   const meWC = inWC(me.x), tabaWC = inWC(s.taba.x);
   let stText = `Taba ${ST[s.taba.st] || ''}${s.winUpdate != null && s.taba.st === 'laptop' ? ' (frissítést néz)' : ''}${s.taba.chair > 0 ? ', széket visel' : ''}${seen ? ' · LÁT TÉGED' : ''}`;
   if (p && p.dragged) stText = 'Taba visszavonszol a helyedre…';
+  else if (s.quiz && s.quiz.pid === myId && s.quiz.phase === 'call') stText = `FELELSZ! Vissza a helyedre: ${Math.max(0, Math.ceil(s.quiz.t))} mp`;
+  else if (s.taba.st === 'knock') stText = 'Taba kint rekedt, kopog – szabad a pálya';
   else if (s.taba.hidden) stText = 'Taba nincs a teremben – szabad a pálya';
+  else if (crouch && !seen) stText += ' · guggolsz';
   else if (meWC && !tabaWC) stText = `Mosdó – itt nem tudsz szabotálni · ${Math.floor(p ? p.wc : 0)}/${WC_LIMIT} mp`;
   else if (meWC) stText = `Taba a mosdóban van!${seen ? ' · LÁT TÉGED' : ''}`;
   else if (tabaWC) stText = 'Taba a mosdóban keres valakit – most szívass!';
@@ -614,6 +667,15 @@ function updateHud() {
   const held = p && p.held != null ? s.items[p.held] : null;
   const risky = p && (p.act || p.drawing || (held && ITEMS[held.type].contraband));
   const danger = Math.max(sus, risky && (s.taba.st === 'warn' || s.taba.st === 'glance' || seen) ? 0.5 : 0);
+  tension = Math.max(danger, (s.taba.stress || 0) * 0.55, (s.alarm || 0) > 0 ? 1 : 0, s.quiz && s.quiz.pid === myId ? 0.8 : 0);
+  // kihívások listája
+  const gk = (s.goals || []).map((g) => g.id + (g.done ? 1 : 0)).join('|');
+  if (cache.goals !== gk) {
+    cache.goals = gk;
+    const ul = $('goals');
+    ul.textContent = '';
+    for (const g of s.goals || []) { const li = document.createElement('li'); li.textContent = g.text; if (g.done) li.className = 'done'; ul.appendChild(li); }
+  }
   if (danger > 0.15 && now - (cache.beat || 0) > 750 - 380 * Math.min(1, danger)) { cache.beat = now; play('heart'); }
   if (s.t <= 30 && Math.ceil(s.t) !== cache.tick) { cache.tick = Math.ceil(s.t); play('tick'); }
   if ((s.alarm || 0) > 0 && now - (cache.alarm || 0) > 900) { cache.alarm = now; play('alarm'); }
@@ -686,19 +748,22 @@ function frame(now) {
     }
     const f = dragged ? 0 : ctl.move.y, r = dragged ? 0 : ctl.move.x;
     if (f || r) {
-      const sp = 3.3 * dt;
+      const sp = (crouch ? 1.7 : 3.3) * dt;
       const nx = me.x + (Math.sin(me.yaw) * f - Math.cos(me.yaw) * r) * sp;
       const nz = me.z + (Math.cos(me.yaw) * f + Math.sin(me.yaw) * r) * sp;
-      [me.x, me.z] = collide(nx, nz, me.x, me.z);
+      [me.x, me.z] = collide(nx, nz, me.x, me.z, undefined, !!view.doorLocked);
       walkT += dt * 9 * Math.min(1, Math.hypot(f, r));
       me.bob = Math.sin(walkT) * 0.025;
     } else me.bob *= 0.85;
     if (now - lastPos > 66) {
       lastPos = now;
-      send({ t: 'pos', x: me.x, z: me.z, yaw: me.yaw, pitch: me.pitch });
+      send({ t: 'pos', x: me.x, z: me.z, yaw: me.yaw, pitch: me.pitch, c: crouch ? 1 : 0 });
     }
+    me.eye = (me.eye ?? EYE) + ((crouch ? 0.92 : EYE) - (me.eye ?? EYE)) * Math.min(1, dt * 10);
     updateHud();
     syncDraw(mp);
+    syncQuiz();
+    music('play', tension, view.t <= 30);
     world.update(view, myId, dt, t, me);
   } else {
     if (mode === 'lobby') updateLobby();
@@ -710,6 +775,7 @@ function frame(now) {
         : { x: 0, z: -0.5, yaw: PI, pitch: -0.5, bob: 0.25 };
     } else cam = { x: Math.sin(t * 0.12) * 2.6, z: 5.2, yaw: PI + Math.sin(t * 0.12) * 0.25, pitch: -0.1, bob: 0 };
     world.setPreview(mode === 'shop' ? shopSel : null);
+    music(mode === 'end' ? 'off' : 'menu');
     world.update(view, myId, dt, t, cam);
   }
   world.render();

@@ -41,6 +41,15 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
 
 A tárgyak minden órán máshol vannak. Többen játszva több pont kell, cserébe el lehet terelni Taba figyelmét.
 
+## Új játékelemek
+
+- **Guggolás:** guggolva a padok eltakarnak Taba elől, és a stréber is csak közelről vesz észre – cserébe lassabb vagy.
+- **Felelés:** Taba néha kihív valakit. Ha téged, 8 másodperced van visszaérni a helyedre (különben lebukás), aztán válaszolni kell
+  egy kérdésre a diákról. Jó válasz után 30 mp-ig kevésbé gyanakszik rád, rossz után jobban figyel. Ha egy osztálytársat hív ki, addig nem rád figyel.
+- **Kizárás:** ha Taba kiment a teremből (hangosbemondó, tűzriadó, mosdó), rá lehet zárni az ajtót – amíg kopog, szabad a pálya.
+- **Kihívások:** minden órán három véletlen bónuszfeladat (jobb oldalt fent), pontot és érmét érnek.
+- **Háttérzene:** generált, „lopakodós” téma, ami a feszültséggel együtt sűrűsödik; a főmenüben ki-be kapcsolható.
+
 ## Nehézség
 
 - Taba elfoglaltan is lát kb. 3 métert, gyakran felnéz, és a hangos dolgokra odafordul.

@@ -92,6 +92,7 @@ export function coinReward(s, p) {
   let c = 5 + Math.floor(Math.min(s.meter, 100) / 4) + Math.floor(Math.min(p ? p.score : 0, 70) / 2);
   if (won) c += 40 + Math.floor(s.t / 6);
   if (p) c -= 3 * (p.caught || 0);
+  c += 12 * (s.goals || []).filter((g) => g.done).length;
   return Math.max(5, c);
 }
 
@@ -110,16 +111,18 @@ for (const z of [-4.85, -3.72]) OBS.push({ x0: 7.8, x1: WC.x1, z0: z - 0.03, z1:
 for (const z of P.stalls) OBS.push({ x0: 8.6, x1: WC.x1, z0: z - 0.22, z1: z + 0.22 });
 
 // bejárható területek (a fal mentén a sugárral beljebb)
-function regions(r) {
-  return [
+function regions(r, locked) {
+  const R = [
     { x0: ROOM.x0 + r, x1: ROOM.x1 - r, z0: ROOM.z0 + r, z1: ROOM.z1 - r },
-    { x0: ROOM.x1 - r - 0.05, x1: WC.x0 + r + 0.05, z0: DOOR.z - DOOR.half + r, z1: DOOR.z + DOOR.half - r },
     { x0: WC.x0 + r, x1: WC.x1 - r, z0: WC.z0 + r, z1: WC.z1 - r },
   ];
+  // zárt ajtón nem lehet átmenni
+  if (!locked) R.push({ x0: ROOM.x1 - r - 0.05, x1: WC.x0 + r + 0.05, z0: DOOR.z - DOOR.half + r, z1: DOOR.z + DOOR.half - r });
+  return R;
 }
 const inside = (R, x, z) => R.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
 
-export function collide(x, z, ox = x, oz = z, r = PLAYER_R) {
+export function collide(x, z, ox = x, oz = z, r = PLAYER_R, locked = false) {
   for (let pass = 0; pass < 2; pass++) {
     for (const b of OBS) {
       if (x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r) {
@@ -129,12 +132,12 @@ export function collide(x, z, ox = x, oz = z, r = PLAYER_R) {
       }
     }
   }
-  const R = regions(r);
+  const R = regions(r, locked);
   if (inside(R, x, z)) return [x, z];
   if (inside(R, x, oz)) return [x, oz];
   if (inside(R, ox, z)) return [ox, z];
   if (inside(R, ox, oz)) return [ox, oz];
-  const b = inWC(ox) ? R[2] : R[0];
+  const b = inWC(ox) ? R[1] : R[0];
   return [Math.max(b.x0, Math.min(b.x1, x)), Math.max(b.z0, Math.min(b.z1, z))];
 }
 
@@ -259,6 +262,7 @@ export function interactions(s, p) {
       add('chair', ht === 'tack' ? 'Rajzszög a székre' : 'Ragasztó a székre', P.chair, 1.6);
     }
     if (!s.alarmUsed) add('alarm', 'TŰZJELZŐ benyomása', P.alarm, 1.5, 1.4);
+    if (!s.doorLocked && (T.hidden || inWC(T.x)) && !(cd.lock > 0)) add('lock', 'Ajtó bezárása – Taba kint reked', { x: ROOM.x1 - 0.25, y: 1.05, z: DOOR.z }, 2.0, 1.5);
     const atDesk = s.laptop === 'desk' && !T.sit && !s.lapBroken;
     if (atDesk && s.hdmi && !(cd.hdmi > 0)) add('hdmi', 'HDMI-kábel kihúzása', { ...P.laptop, x: P.laptop.x - 0.25 }, 1.0, 1.5);
     if (atDesk && ht === 'usb' && !s.usb) add('usb', 'Pendrive a laptopba', P.laptop, 1.5, 1.6);
@@ -274,3 +278,18 @@ export function interactions(s, p) {
   }
   return out;
 }
+
+// ---- felelés: kérdések a diákról (az első válasz a helyes) --------------------
+export const QUIZ = [
+  { q: 'Mit jelent a „bellatores”?', a: ['Harcosok', 'Szerzetesek', 'Egy olasz tésztafajta'] },
+  { q: 'Mikor koronázták császárrá Nagy Károlyt?', a: ['800-ban', '1000-ben', '1526-ban'] },
+  { q: 'Mit jelent a monarchia?', a: ['Egyszemélyi uralkodói hatalom', 'A nép uralma', 'Közös kassza'] },
+  { q: 'Mi a feudum?', a: ['Hűbérbirtok', 'Egyházi adó', 'Lovagi torna'] },
+  { q: 'Ki a vazallus?', a: ['A hűbéres', 'A hűbérúr', 'A király szakácsa'] },
+  { q: 'Ki a senior a hűbéri láncban?', a: ['A hűbérúr', 'A hűbéres', 'A legidősebb jobbágy'] },
+  { q: 'Ki koronázta meg Nagy Károlyt?', a: ['Leó pápa', 'Saját maga', 'A római szenátus'] },
+  { q: 'Mit adott a vazallus a birtokért cserébe?', a: ['Hűségesküt és szolgálatot', 'Aranyat és sót', 'Semmit, ajándék volt'] },
+  { q: 'Honnan ered a király hatalma a korabeli felfogás szerint?', a: ['Istentől', 'A néptől', 'A hadseregtől'] },
+  { q: 'Miért a nemesség látta el a katonai feladatokat?', a: ['Volt pénzük fegyverre és idejük gyakorolni', 'Mert ők voltak a legtöbben', 'Sorsolással dőlt el'] },
+];
+export const NPC_NAMES = ['Kovács', 'Szabó', 'Tóth', 'Varga', 'Horváth'];

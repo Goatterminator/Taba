@@ -5,7 +5,7 @@ export class Controls {
     this.yaw = Math.PI; this.pitch = 0;
     this.enabled = false;
     this.touch = matchMedia('(pointer: coarse)').matches;
-    this.onUse = () => {}; this.onDrop = () => {}; this.onAct = () => {};
+    this.onUse = () => {}; this.onDrop = () => {}; this.onAct = () => {}; this.onCrouch = () => {};
     this.keys = new Set();
     this.joyId = null; this.lookId = null;
     this.layer = layer;
@@ -62,6 +62,7 @@ export class Controls {
       if (k === 'KeyE') this.onAct(true);
       if (k === 'KeyF') this.onUse();
       if (k === 'KeyQ' || k === 'KeyG') this.onDrop();
+      if (k === 'KeyC' || k === 'ControlLeft') this.onCrouch();
     });
     addEventListener('keyup', (e) => {
       this.keys.delete(e.code);

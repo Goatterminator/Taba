@@ -287,6 +287,10 @@ function poseHuman(h, mode, t, sit, count = 0) {
     case 'laugh': by = Math.abs(Math.sin(t * 15)) * 0.035; bx = -0.12; hx = -0.35 + Math.sin(t * 15) * 0.08; aa = [-0.6, -0.6]; az = [0.25, -0.25]; mo = 3; break;
     case 'gasp': aa = [-2.75, -2.75]; az = [0.4, -0.4]; mo = 3.5; break;
     case 'watch': aa = [-0.9, -0.9]; break;
+    case 'quiz': aa = [-1.5, 0.2]; az = [0, 0]; hx = 0.05; mo = 1 + Math.abs(Math.sin(t * 8)) * 1.5; break;
+    case 'knock': aa = [0, -1.6 + Math.sin(t * 14) * 0.5]; hx = 0.1; mo = 2; break;
+    case 'crouch': ly = -0.42; bx = 0.35; la = [-1.25, -1.25]; aa = [-0.7, -0.7]; break;
+    case 'crouchWalk': ly = -0.42; bx = 0.35; la = [-1.25 + w * 0.35, -1.25 - w * 0.35]; aa = [-0.7 - w * 0.3, -0.7 + w * 0.3]; break;
     case 'raise': aa = [-0.9, 0]; az = [0, 2.95]; by = Math.abs(Math.sin(t * 7)) * 0.03; break;
     case 'duck': bx = 0.45; aa = [-2.9, -2.9]; az = [0.3, -0.3]; hx = 0.6; break;
   }
@@ -693,6 +697,8 @@ export class World {
     });
     const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.28), new THREE.MeshBasicMaterial({ map: sign }));
     sg.rotation.y = -PI / 2; sg.position.set(ROOM.x1 - 0.02, 2.55, DOOR.z); S.add(sg);
+    this.doorLock = put(this.door, box(0.09, 0.12, 0.1, 0xdc2626), -0.02, 1.05, -2 * DOOR.half + 0.14);
+    this.doorLock.visible = false;
     this.doorOpen = 0;
     put(S, box(0.02, 0.16, 0.12, 0xffffff), ROOM.x1 - 0.012, P.switch.y, P.switch.z);
     this.rocker = put(S, box(0.03, 0.08, 0.05, 0xdedede), ROOM.x1 - 0.03, P.switch.y, P.switch.z);
@@ -1254,7 +1260,7 @@ export class World {
       a.rotation.y = u.yaw;
       const sp = Math.hypot(a.position.x - px, a.position.z - pz) / Math.max(dt, 1e-3);
       u.sp += (sp - u.sp) * 0.2;
-      poseHuman(a, p.dragged ? 'dragged' : u.sp > 0.3 ? 'walk' : p.act ? 'fix' : '', t, false);
+      poseHuman(a, p.dragged ? 'dragged' : p.crouch ? (u.sp > 0.3 ? 'crouchWalk' : 'crouch') : u.sp > 0.3 ? 'walk' : p.act ? 'fix' : '', t, false);
     }
     if (this.preview) { this.preview.rotation.y = t * 0.7; poseHuman(this.preview, 'lecture', t, false); }
     this.updateNpcs(s, dt, t);
@@ -1263,15 +1269,17 @@ export class World {
     let near = Math.hypot(tg.position.x - DOOR.x, tg.position.z - DOOR.z) < 1.7;
     if (me && Math.hypot(me.x - DOOR.x, me.z - DOOR.z) < 1.7) near = true;
     for (const a of this.avatars.values()) if (Math.hypot(a.position.x - DOOR.x, a.position.z - DOOR.z) < 1.7) near = true;
-    this.doorOpen += ((near ? 1 : 0) - this.doorOpen) * (1 - Math.exp(-dt * 7));
+    this.doorOpen += ((near && !s.doorLocked ? 1 : 0) - this.doorOpen) * (1 - Math.exp(-dt * 7));
+    if (s.doorLocked) this.doorOpen = Math.min(this.doorOpen, 0.02);
     this.door.rotation.y = -1.45 * this.doorOpen;
+    this.doorLock.visible = !!s.doorLocked;
     for (const [id, a] of this.avatars) if (!s.players[id] || id === meId) { this.scene.remove(a); this.avatars.delete(id); }
 
     // kamera
     this.shakeA *= Math.exp(-dt * 6);
     if (me) {
       const sh = this.shakeA * 0.07;
-      this.camera.position.set(me.x + (Math.random() - 0.5) * sh, EYE + (me.bob || 0) + (Math.random() - 0.5) * sh, me.z + (Math.random() - 0.5) * sh);
+      this.camera.position.set(me.x + (Math.random() - 0.5) * sh, (me.eye ?? EYE) + (me.bob || 0) + (Math.random() - 0.5) * sh, me.z + (Math.random() - 0.5) * sh);
       this.camera.rotation.set(me.pitch, me.yaw + PI, 0);
     }
     // zoom (lebukáskor ráközelítünk Taba kezére)
