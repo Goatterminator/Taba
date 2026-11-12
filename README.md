@@ -40,6 +40,16 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
 
 A tárgyak minden órán máshol vannak. Többen játszva több pont kell, cserébe el lehet terelni Taba figyelmét.
 
+## Hangulat
+
+- Taba helyzethez illő, száraz humorú szövegekkel reagál mindenre (több száz változat, `js/lines.js`), munka közben motyog.
+- Minél nagyobb a káosz, annál idegesebb: pirosodik a feje, gőzölög, gyorsabban beszél és mozog, gyakrabban néz fel.
+- Következmények: ragasztó után a szék egy ideig rajta marad, bűzbomba után zöld az arca.
+- Véletlen események: Windows-frissítés, anyukája telefonál, a hangosbemondó kihívja a teremből.
+- Kombó: a gyors egymásutáni szívatások egyre több pontot érnek.
+- Az üres helyeken osztálytársak ülnek (írnak, alszanak, telefonoznak), és reagálnak mindenre.
+- Az óra végén beírás az osztálynaplóba: mi történt, és ki milyen címet kapott.
+
 ## Taba hangja
 
 Taba a telefon beépített magyar felolvasóhangján beszél (köszön, magyaráz, számol, ordibál – helyzettől függően).
