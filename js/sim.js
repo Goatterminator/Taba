@@ -4,6 +4,7 @@ import {
   ROUND_TIME, METER_MAX, MAX_STRIKES, WC_LIMIT, ROOM, WC, P, SEATS, ITEMS, TOBS, NAV, AISLES, FRONT_Z, BACK_Z,
   makeItems, interactions, projState, isDark, collide, inWC, skinById,
 } from './data.js';
+import { LINES, line } from './lines.js';
 
 const PI = Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -83,29 +84,20 @@ function rayRoom(o, d) {
 
 const CHAIR_SPOT = { x: P.chair.x, z: P.chair.z, yaw: 0 };
 const FIX = {
-  lights: { spot: { x: 4.5, z: -3.3, yaw: PI / 2 }, dur: 0.9, say: 'Ki kapcsolta le a villanyt?!' },
-  fuse: { spot: { x: 2.6, z: 5.25, yaw: 0 }, dur: 4, say: 'Már megint a biztosíték?! Nem igaz!' },
-  plug: { spot: { x: 4.3, z: -5.35, yaw: PI * 0.75 }, dur: 2.5, say: 'Ki húzta ki a projektort?!' },
-  draw: { spot: CHAIR_SPOT, dur: 2.2, say: 'Ki rajzolt a prezentációmra?! Ez nem rajzóra!' },
-  doodle: { spot: { x: P.board.x, z: -5.3, yaw: PI }, dur: 3.5, say: 'Ki firkált a táblára?! Ez nem rajzóra!' },
-  window: { spot: { x: -4.4, z: 0, yaw: -PI / 2 }, dur: 1.5, say: 'Ki nyitotta ki az ablakot? Huzat van!' },
-  hdmi: { spot: CHAIR_SPOT, dur: 1.8, say: 'Nincs kép… Ki húzta ki a HDMI-kábelt?!' },
-  usb: { spot: CHAIR_SPOT, dur: 2.2, say: 'Mi ez a vetítés?! Ki dugott pendrive-ot a laptopomba?!' },
-  screen: { spot: { x: 3.0, z: -4.6, yaw: PI }, dur: 2.5, say: 'A vászon! Ki lőtte szét a vásznat?!' },
+  lights: { spot: { x: 4.5, z: -3.3, yaw: PI / 2 }, dur: 0.9, say: 'fixLights' },
+  fuse: { spot: { x: 2.6, z: 5.25, yaw: 0 }, dur: 4, say: 'fixFuse' },
+  plug: { spot: { x: 4.3, z: -5.35, yaw: PI * 0.75 }, dur: 2.5, say: 'fixPlug' },
+  draw: { spot: CHAIR_SPOT, dur: 2.2, say: 'fixDraw' },
+  doodle: { spot: { x: P.board.x, z: -5.3, yaw: PI }, dur: 3.5, say: 'fixDoodle' },
+  window: { spot: { x: -4.4, z: 0, yaw: -PI / 2 }, dur: 1.5, say: 'fixWindow' },
+  hdmi: { spot: CHAIR_SPOT, dur: 1.8, say: 'fixHdmi' },
+  usb: { spot: CHAIR_SPOT, dur: 2.2, say: 'fixUsb' },
+  screen: { spot: { x: 3.0, z: -4.6, yaw: PI }, dur: 2.5, say: 'fixScreen' },
+  projbroken: { spot: { x: 3.0, z: -4.6, yaw: PI }, dur: 6, say: 'fixProjBroken' },
 };
+const BUSY = ['laptop', 'board', 'projector', 'lecture', 'patrol'];
+const EVENT_KINDS = ['update', 'call', 'away'];
 
-const LINES = {
-  greet: ['Sziasztok! Üljetek le, kezdjük az órát!', 'Sziasztok! Ma a feudalizmusról lesz szó.', 'Sziasztok! Telefonokat el, kezdünk!'],
-  lecture: ['Akik a vérükkel adóznak: ők a harcosok, a bellatores!', 'Ki tudja, mit jelent a monarchia? Monosz, meg arkhé!', 'Nagy Károlyt nyolcszáz karácsonyán koronázták császárrá.', 'A hűbérúr birtokot ad, cserébe hűségeskü jár!', 'Feudum, senior, vazallus – ez lesz a dolgozatban!', 'Csend legyen ott hátul!', 'Figyelünk, gyerekek!'],
-  laptop: ['Mindjárt, csak megnézek egy e-mailt…', 'Hol is van az a prezentáció…', 'Egy pillanat, beírom a hiányzókat.', 'Miért ilyen lassú ez a gép…'],
-  projector: ['Miért nem megy ez a vacak…', 'Na, ezen a dián látható a hűbéri lánc…', 'Lapozok a következő diára.'],
-  board: ['Ezt mindenki írja le!', 'Felírom a fogalmakat: feudum, vazallus.', 'Jegyzeteljetek!'],
-  patrol: ['Megnézem, ki mit csinál…', 'Remélem, mindenki jegyzetel!'],
-  yell: ['MI EZ A HANGZAVAR?!', 'AZONNAL HAGYJÁTOK ABBA!', 'KI KIABÁL ITT?! MEGSÜKETÜLÖK!', 'EZ NEM VÁSÁR, HANEM TÖRIÓRA!', 'ELÉG! MINDJÁRT FELÍRLAK BENNETEKET!'],
-  slip: ['HUPPÁ! Ki dobta el ezt a banánhéjat?!', 'Jaj, a derekam! Ki volt ez?!'],
-  snake: ['ÁÁÁÁ! KÍGYÓ! …Ja, csak gumi. Nagyon vicces!', 'JAJ! Egy kígyó! …Gumiból. Ezért még felelni fogtok!'],
-  wcEmpty: ['Senki sincs itt… Furcsa.', 'Üres. Akkor meg hol van?'],
-};
 const COUNT = ['EGY!', 'KETTŐ!', 'HÁROM!'];
 
 export class Sim {
@@ -143,13 +135,14 @@ export class Sim {
       board: 0.4, doodle: false,
       laptop: 'desk', lapBroken: false, win: false, chairTrap: null, deskTrap: null,
       clock: true, plant: true, globe: true, glass: [1, 1],
-      lockers: [0, 0, 0], cd: {}, cloud: null,
-      taba: { x: P.chair.x, z: P.chair.z, yaw: 0, st: 'laptop', fov: 1.0, range: 2.2, say: '', sit: true, count: 0 },
+      lockers: [0, 0, 0], cd: {}, cloud: null, winUpdate: null, final: '', endKind: '',
+      stats: { slips: 0, farts: 0, glued: 0, snakes: 0, stinks: 0, megas: 0, shots: 0, broken: 0, lapOut: 0, draws: 0, doodles: 0, wcHunts: 0, planes: 0, events: 0, maxCombo: 0 },
+      taba: { x: P.chair.x, z: P.chair.z, yaw: 0, st: 'laptop', fov: 1.0, range: 2.2, say: '', sit: true, count: 0, stress: 0, chair: 0, green: 0, hidden: false },
       players: old, items: makeItems(),
     };
     for (const p of Object.values(old)) {
       const st = SEATS[p.seat % SEATS.length];
-      Object.assign(p, { x: st.x, z: st.z, yaw: st.yaw, held: null, act: null, sus: 0, immune: 3, seen: false, hot: 0, wc: 0, score: 0, caught: 0, dragged: false, drawing: false });
+      Object.assign(p, { x: st.x, z: st.z, yaw: st.yaw, held: null, act: null, sus: 0, immune: 3, seen: false, hot: 0, wc: 0, wcTotal: 0, score: 0, caught: 0, dragged: false, drawing: false });
       this.emit({ e: 'tp', pid: p.id, x: p.x, z: p.z, yaw: p.yaw });
     }
     this.counts = {};
@@ -164,31 +157,48 @@ export class Sim {
     this.wantYaw = 0;
     this.lapLost = false; this.projLost = false; this.searches = 0;
     this.last = 'lecture';
-    this.act = { kind: 'laptop', phase: 'do', t: 8, dur: 8, spot: { ...CHAIR_SPOT }, g: rnd(5, 8) };
-    this.say(pick(LINES.greet), 3.5);
+    this.reacts = [];
+    this.combo = 0; this.lastHit = -99; this.comboSaid = -99;
+    this.eventT = rnd(28, 40); this.lastEvent = null;
+    this.saidStress = {};
+    this.chairLineT = 6;
+    this.act = { kind: 'laptop', phase: 'do', t: 8, dur: 8, spot: { ...CHAIR_SPOT }, g: rnd(5, 8), m: 5 };
+    this.say(line('greet'), 3.5);
     this.emit({ e: 'snd', n: 'bell' });
   }
 
-  end(phase, reason) {
+  end(phase, reason, kind = phase) {
     if (this.s.phase !== 'play') return;
     this.s.phase = phase;
     this.s.reason = reason;
+    this.s.endKind = kind;
+    this.s.final = line(phase === 'won' ? 'endWin' : 'endLose');
     for (const p of Object.values(this.s.players)) { p.act = null; p.dragged = false; }
     this.emit({ e: 'end', phase });
   }
-  endSoon(t, phase, reason) {
+  endSoon(t, phase, reason, kind) {
     if (this.endT > 0) return;
     this.endT = t;
-    this.endInfo = [phase, reason];
+    this.endInfo = [phase, reason, kind];
   }
 
   say(text, t = 2.6, mood = 'normal') {
     this.s.taba.say = text;
-    this.sayT = t;
-    this.emit({ e: 'say', m: text, mood });
+    this.sayT = Math.max(t, 1 + text.length / 16);
+    this.emit({ e: 'say', m: text, mood, stress: Math.round(this.s.taba.stress * 100) / 100 });
   }
+  // hangosbemondó (nem Taba beszél)
+  announce(text) {
+    this.emit({ e: 'snd', n: 'pa' });
+    this.emit({ e: 'say', m: text, mood: 'pa' });
+  }
+  // késleltetett reakció egy sorral
+  react(key, delay = 1, mood = 'angry', vars) {
+    this.reacts.push({ key, t: delay, mood, vars, life: 7 });
+  }
+  shake(a = 0.5) { this.emit({ e: 'shake', a }); }
 
-  canStun() { return this.stun <= 0 && this.countT <= 0 && this.endT <= 0 && !(this.act && this.act.kind === 'drag'); }
+  canStun() { return this.stun <= 0 && this.countT <= 0 && this.endT <= 0 && !this.s.taba.hidden && !(this.act && this.act.kind === 'drag'); }
   doStun(t, kind, line, mood = 'yell') {
     this.stun = t; this.stunKind = kind; this.look = null;
     if (line) this.say(line, Math.min(t, 4), mood);
@@ -202,15 +212,27 @@ export class Sim {
       const n = (this.counts[key] = (this.counts[key] || 0) + 1);
       dim = Math.max(0.3, Math.pow(0.7, n - 1));
     }
-    const v = (base * dim) / this.scale();
-    s.meter = Math.min(METER_MAX, s.meter + v);
+    let v = (base * dim) / this.scale();
     const p = typeof by === 'string' ? s.players[by] : by;
-    if (p) p.score += v;
+    if (p) {
+      // kombó: gyors egymásutánban jövő szívatások többet érnek
+      const now = ROUND_TIME - s.t;
+      this.combo = now - this.lastHit < 7 ? this.combo + 1 : 1;
+      this.lastHit = now;
+      if (this.combo >= 2) {
+        v *= 1 + Math.min(1, 0.25 * (this.combo - 1));
+        this.emit({ e: 'combo', n: this.combo });
+        s.stats.maxCombo = Math.max(s.stats.maxCombo, this.combo);
+        if (this.combo >= 3 && now - this.comboSaid > 20) { this.comboSaid = now; this.react('combo', 0.6, 'yell'); }
+      }
+      p.score += v;
+    }
+    s.meter = Math.min(METER_MAX, s.meter + v);
     this.emit({ e: 'gain', v: Math.round(v * 10) / 10, m: label });
     this.checkWin();
   }
   checkWin() {
-    if (this.s.meter >= METER_MAX - 1e-6) this.end('won', 'Az óra teljesen szétesett – Taba feladta!');
+    if (this.s.meter >= METER_MAX - 1e-6) this.end('won', 'Az óra teljesen szétesett – Taba feladta.', 'won');
   }
 
   noise(x, z, delay = 0.5, t = 2.6) {
@@ -275,7 +297,8 @@ export class Sim {
     this.lastDrawing = { e: 'drawing', id: s.drawId, strokes: clean };
     this.emit(this.lastDrawing);
     p.hot = 0.6;
-    this.gain(14, `${p.name} rajza a vásznon!`, 'draw', p);
+    s.stats.draws++;
+    this.gain(14, `${p.name} műalkotása a vásznon`, 'draw', p);
     this.notice('draw', rnd(4, 7));
   }
 
@@ -328,23 +351,24 @@ export class Sim {
       this.noise(p.x, p.z, 0.55, 3);
       if (!best) return;
       const id = best.id;
-      const crash = (label, pts, key) => { this.gain(pts, label, key, p); this.emit({ e: 'snd', n: 'crash' }); };
+      s.stats.shots++;
+      const crash = (label, pts, key) => { this.gain(pts, label, key, p); this.emit({ e: 'snd', n: 'crash' }); s.stats.broken++; };
       if (id === 'taba') {
         this.stun = 3; this.stunKind = 'yell';
-        this.say('ÁÚ! KI LŐTT RÁM?! IGAZGATÓIT KAPTOK!', 4, 'yell');
+        this.say(line('shotHit'), 4, 'yell');
         this.emit({ e: 'strike', n: 3, m: 'TALÁLAT!', hit: true });
-        this.endSoon(2, 'lost', 'Eltaláltátok Tabát a szivacslövővel – azonnali igazgatói!');
+        this.endSoon(2.4, 'lost', 'Eltaláltátok Tabát a szivacslövővel. Azonnali igazgatói.', 'hit');
       } else if (id === 'projector') {
         s.proj = 'broken'; crash('Projektor kilőve!', 18);
         this.notice('projbroken', rnd(1, 2.5));
       } else if (id === 'screen') {
         s.screenTorn = true; crash('Vászon szétlőve!', 10);
         this.notice('screen', rnd(2, 4));
-      } else if (id === 'clock') { s.clock = false; crash('Falióra lelőve', 8); }
-      else if (id === 'plant') { s.plant = false; crash('Virág felborítva', 6); }
-      else if (id === 'globe') { s.globe = false; crash('Földgömb lelőve', 5); }
-      else if (id.startsWith('glass')) { s.glass[+id[5]] = 0; crash('Ablak megrepedt', 6); }
-      else if (id === 'laptop') { s.lapBroken = true; crash('Laptop szétlőve!', 15); }
+      } else if (id === 'clock') { s.clock = false; crash('Falióra lelőve', 8); this.react('react_clock', 1.2); }
+      else if (id === 'plant') { s.plant = false; crash('A fikusz kidőlt', 6); this.react('react_plant', 1.2, 'yell'); }
+      else if (id === 'globe') { s.globe = false; crash('Földgömb lelőve', 5); this.react('react_globe', 1.2); }
+      else if (id.startsWith('glass')) { s.glass[+id[5]] = 0; crash('Ablak megrepedt', 6); this.react('react_glass', 1.2); }
+      else if (id === 'laptop') { s.lapBroken = true; crash('Laptop szétlőve!', 15); this.react('lapBroken', 1.2, 'yell'); }
       else if (id.startsWith('p:')) this.emit({ e: 'toast', m: `${s.players[id.slice(2)]?.name || 'Valaki'}: „Áú! Ne engem!”`, k: 'info' });
       this.emit({ e: 'puff', x: to[0], y: to[1], z: to[2], c: 0xffaa33 });
     } else if (it.type === 'megaphone') {
@@ -353,11 +377,13 @@ export class Sim {
       p.hot = 1.2;
       this.emit({ e: 'snd', n: 'megaphone' });
       this.emit({ e: 'mega', x: p.x, z: p.z, yaw: p.yaw });
-      this.gain(11, 'MEGAFON! Taba kiborult', 'mega', p);
+      this.gain(11, 'Megafon – Taba kiborult', 'mega', p);
+      s.stats.megas++;
+      this.shake(0.6);
       if (this.canStun()) {
-        this.doStun(3.2, 'yell', pick(LINES.yell));
+        this.doStun(3.2, 'yell', line('yell'));
         if (!inWC(T.x)) this.look = { x: p.x, z: p.z, d: 0, t: 2.6 };
-      } else if (this.endT <= 0) this.say(pick(LINES.yell), 3, 'yell');
+      } else if (this.endT <= 0 && !T.hidden) this.say(line('yell'), 3, 'yell');
       if (it.ammo <= 0) consume();
     } else if (it.type === 'plane') {
       p.hot = 0.5;
@@ -373,8 +399,9 @@ export class Sim {
       this.emit({ e: 'snd', n: 'whoosh' });
       consume();
       if (hit) {
-        this.gain(5, 'Papírrepülő – telitalálat!', 'plane', p);
-        if (this.stun <= 0 && this.countT <= 0) this.say('Ki dobta ezt?!', 2.4, 'angry');
+        this.gain(5, 'Papírrepülő – telitalálat', 'plane', p);
+        s.stats.planes++;
+        if (this.stun <= 0 && this.countT <= 0) this.say(line('plane'), 2.4, 'angry');
         this.noise(p.x, p.z, 0.6, 2.4);
       }
     } else if (it.type === 'stink') {
@@ -443,7 +470,7 @@ export class Sim {
         s.cd.board = 6;
         break;
       case 'doodle':
-        s.doodle = true; this.gain(12, 'Firka a táblán', 'doodle', p); this.emit({ e: 'snd', n: 'whoosh' });
+        s.doodle = true; s.stats.doodles++; this.gain(12, 'Firka a táblán', 'doodle', p); this.emit({ e: 'snd', n: 'whoosh' });
         this.notice('doodle', rnd(4, 8));
         break;
       case 'window':
@@ -453,7 +480,9 @@ export class Sim {
       case 'throwlap':
         if (!held || held.type !== 'laptop') break;
         use(); s.laptop = 'gone'; p.hot = 0.4;
-        this.gain(22, 'Laptop kirepült az ablakon!', null, p); this.emit({ e: 'snd', n: 'crash' });
+        this.gain(22, 'A laptop elhagyta az épületet', null, p); this.emit({ e: 'snd', n: 'crash' });
+        s.stats.lapOut++;
+        this.react('lapGone', 1.0, 'yell');
         this.noise(P.window.x, P.window.z, 0.9, 2.5);
         break;
       case 'bin':
@@ -532,11 +561,10 @@ export class Sim {
     T.sit = false;
     this.wantYaw = T.yaw = yawTo(T.x, T.z, p.x, p.z);
     const word = COUNT[Math.min(n, 3) - 1];
-    let line;
-    if (n >= MAX_STRIKES) line = `${word} Ennyi volt! Mindenki megy az igazgatóhoz!`;
-    else if (inToilet) line = `${word} ${p.name}, nem bujkálunk a mosdóban! Gyere vissza az órára!`;
-    else line = `${word} ${p.name}, vissza a helyedre!`;
-    this.say(line, 3.2, 'angry');
+    const key = n >= MAX_STRIKES ? 'strike3' : inToilet ? 'strikeWC' : n === 1 ? 'strike1' : 'strike2';
+    this.say(line(key, { n: p.name, c: word }), 3.2, 'angry');
+    T.hidden = false;
+    if (this.act && EVENT_KINDS.includes(this.act.kind)) this.finish(this.act);
     this.emit({ e: 'strike', n, pid: p.id, name: p.name, m: word, wc: inToilet });
     this.confiscate(p);
     p.act = null; p.sus = 0; p.immune = inToilet ? 9 : 5; p.hot = 0; p.wc = 0; p.drawing = false;
@@ -551,7 +579,7 @@ export class Sim {
     } else {
       this.toSeat(p);
     }
-    if (n >= MAX_STRIKES) this.endSoon(2.8, 'lost', 'Taba harmadszor is rajtakapott valakit: „HÁROM!” – irány az igazgatói.');
+    if (n >= MAX_STRIKES) this.endSoon(3.2, 'lost', 'Taba harmadszor is rajtakapott valakit. Irány az igazgatói.', 'strikes');
   }
 
   // ---- Taba ------------------------------------------------------------
@@ -562,7 +590,7 @@ export class Sim {
     else if (kind === 'projector') { a.spot = { x: 3.0, z: -4.7, yaw: PI }; a.dur = rnd(10, 14); }
     else if (kind === 'board') { a.spot = { x: P.board.x + rnd(-1, 1), z: -5.3, yaw: PI }; a.dur = rnd(10, 14); }
     else if (kind === 'lecture') { a.spot = { x: rnd(-1, 1.5), z: -4.2, yaw: 0 }; a.dur = rnd(5, 8); }
-    else if (kind === 'fix') { a.task = task; a.spot = task.spot; a.dur = task.dur; if (task.say) this.say(task.say, 3, task.mood || 'angry'); }
+    else if (kind === 'fix') { a.task = task; a.spot = task.spot; a.dur = task.dur; if (task.say) this.say(LINES[task.say] ? line(task.say) : task.say, 3, task.mood || 'angry'); }
     T.sit = false;
     if (kind === 'patrol' || kind === 'search') {
       const a1 = pick(AISLES);
@@ -573,10 +601,42 @@ export class Sim {
       for (const r of route) { a.path.push(...findPath(cx, cz, r.x, r.z)); cx = r.x; cz = r.z; }
       a.spot = { x: a2, z: FRONT_Z, yaw: 0 };
       a.dur = 0.3;
-      if (kind === 'patrol') this.say(pick(LINES.patrol));
+      if (kind === 'patrol') this.say(line('patrol'));
     } else {
       a.path = findPath(T.x, T.z, a.spot.x, a.spot.z);
     }
+    this.act = a;
+  }
+
+  // véletlen események: Windows-frissítés, anyuka hív, hangosbemondó
+  startEvent() {
+    const s = this.s, T = s.taba;
+    let opts = ['call', 'away'];
+    if (s.laptop === 'desk' && !s.lapBroken) opts.push('update', 'update');
+    opts = opts.filter((k) => k !== this.lastEvent) ;
+    const kind = pick(opts.length ? opts : ['call']);
+    this.lastEvent = kind;
+    this.eventT = rnd(40, 60);
+    s.stats.events++;
+    T.sit = false;
+    const a = { kind, phase: 'go', t: 0, g: 99, m: 4, li: 0 };
+    if (kind === 'update') {
+      a.spot = { ...CHAIR_SPOT }; a.dur = 15;
+      s.winUpdate = 0;
+      this.emit({ e: 'evt', t: 'Windows-frissítés', d: 'Taba 15 másodpercig csak a töltőcsíkot bámulja.' });
+      this.emit({ e: 'snd', n: 'chime' });
+      this.say(line('updStart'), 3, 'angry');
+    } else if (kind === 'call') {
+      a.spot = { x: -4.3, z: 1.3, yaw: -PI / 2 }; a.dur = 15;
+      this.emit({ e: 'evt', t: 'Bejövő hívás: Anyukám', d: 'Taba az ablaknál telefonál, háttal az osztálynak.' });
+      this.emit({ e: 'snd', n: 'ringtone' });
+      this.say(line('callStart'), 3);
+    } else {
+      a.spot = { x: P.wcCenter.x, z: P.wcCenter.z, yaw: PI / 2 }; a.dur = 15; a.pre = 4;
+      this.emit({ e: 'evt', t: 'Hangosbemondó', d: 'Taba kimegy a teremből – kb. 15 másodperc szabad pálya.' });
+      this.announce(line('paAnnounce'));
+    }
+    a.path = findPath(T.x, T.z, a.spot.x, a.spot.z);
     this.act = a;
   }
 
@@ -605,7 +665,7 @@ export class Sim {
     if (a.kind === 'drag') {
       const q = s.players[a.pid];
       if (q) this.toSeat(q);
-      this.say('Ülj le szépen a helyedre! És itt maradsz!', 2.6, 'angry');
+      this.say(line('drag'), 2.6, 'angry');
       this.last = 'drag'; this.act = null;
       return;
     }
@@ -613,55 +673,56 @@ export class Sim {
     if (s.deskTrap === 'snake' && dist(a.spot.x, a.spot.z, P.chair.x, P.chair.z) < 0.8 && this.canStun()) {
       s.deskTrap = null;
       this.emit({ e: 'snd', n: 'scream' });
-      this.gain(14, 'Taba sikított a gumikígyótól!', null, s.deskTrapBy);
-      this.doStun(4.5, 'scared', pick(LINES.snake));
+      this.gain(14, 'Taba sikított a gumikígyótól', null, s.deskTrapBy);
+      s.stats.snakes++;
+      this.shake(0.3);
+      this.doStun(4.5, 'scared', line('snake'));
       if (a.kind === 'fix') this.tasks.unshift(a.task);
+      if (a.kind === 'update') s.winUpdate = null;
       this.act = null;
       return;
     }
 
-    if (a.kind === 'laptop') {
+    if (a.kind === 'update') {
+      T.sit = true;
+      if (this.sitTraps()) s.winUpdate = null;
+    } else if (a.kind === 'call') {
+      // csak áll és telefonál
+    } else if (a.kind === 'away') {
+      T.hidden = true;
+    } else if (a.kind === 'laptop') {
       if (s.laptop !== 'desk') {
-        this.say('Hol a laptopom?! Ki vitte el?!', 3, 'angry');
+        this.say(line('lapMissing'), 3, 'angry');
         this.gain(6, 'Taba keresi a laptopját', 'lapmiss');
         this.last = 'search';
         this.startAct('search');
         return;
       } else if (s.lapBroken) {
-        this.say('Nem kapcsol be… Mi történt a laptopommal?!', 3.5, 'angry');
+        this.say(line('lapBroken'), 3.5, 'angry');
         this.lapLost = true; a.t = 6;
-      } else this.say(pick(LINES.laptop));
+      } else this.say(line('laptop'));
       T.sit = true;
-      if (s.chairTrap === 'cushion') {
-        s.chairTrap = null;
-        this.emit({ e: 'snd', n: 'fart' });
-        this.gain(14, 'PRRRT! Taba ráült a pukipárnára', null, s.chairTrapBy);
-        this.doStun(4, 'stun', '…Ez… ez nem én voltam!', 'normal');
-      } else if (s.chairTrap === 'glue') {
-        s.chairTrap = null;
-        this.gain(12, 'Taba odaragadt a székhez', null, s.chairTrapBy);
-        this.doStun(14, 'stuck', 'Mi a…?! Odaragadtam! Segítség!', 'angry');
-      }
+      this.sitTraps();
     } else if (a.kind === 'board') {
       const chalk = s.items[1];
       if (s.doodle) { this.notice('doodle', 0); this.act = null; return; }
       if (!chalk.home) {
-        this.say('Hol a kréta?! Ki vitte el?', 2.6, 'angry');
+        this.say(line('chalkMissing'), 2.6, 'angry');
         this.gain(5, 'Taba nem találja a krétát', 'chalkmiss');
         this.last = 'board'; this.act = null; return;
       }
-      this.say(pick(LINES.board));
+      this.say(line('board'));
     } else if (a.kind === 'projector') {
       const ps = projState(s);
       if (ps === 'broken') {
-        this.say('Tönkrement a projektor?! Ki volt ez?!', 3.5, 'angry');
+        this.say(line('fixProjBroken'), 3.5, 'angry');
         this.projLost = true; a.t = 5;
       } else if (ps === 'off') {
         this.notice(!s.power ? 'fuse' : 'plug', 0);
         this.last = 'projector'; this.act = null; return;
       } else if (ps === 'nosignal') {
         if (s.laptop !== 'desk') {
-          this.say('Nincs jel… Hol a laptopom?!', 3, 'angry');
+          this.say(line('lapMissing'), 3, 'angry');
           this.last = 'search'; this.startAct('search'); return;
         }
         if (s.lapBroken) { this.say('A laptop halott, nincs mit kivetíteni…', 3); this.projLost = true; this.lapLost = true; a.t = 3; }
@@ -670,9 +731,9 @@ export class Sim {
         this.notice('usb', 0); this.last = 'projector'; this.act = null; return;
       } else if (ps === 'drawing') {
         this.notice('draw', 0); this.last = 'projector'; this.act = null; return;
-      } else this.say(pick(LINES.projector));
+      } else this.say(line('projector'));
     } else if (a.kind === 'lecture') {
-      this.say(pick(LINES.lecture));
+      this.say(line('lecture'));
     } else if (a.kind === 'search') {
       const st = s.laptop;
       const lap = s.items[0];
@@ -681,10 +742,32 @@ export class Sim {
       } else if (st === 'taken' && ++this.searches < 3) {
         this.say('Valaki elvitte! Ki volt az?!', 2.6, 'angry');
       } else if (st === 'gone' || st === 'taken') {
-        this.say('Eltűnt a laptopom… Ezt még megkeserülitek!', 3.5, 'angry');
+        this.say(line('lapGone'), 3.5, 'angry');
         if (st === 'gone') this.lapLost = true;
       }
     }
+  }
+
+  // ráül a székére: pukipárna / ragasztó
+  sitTraps() {
+    const s = this.s;
+    if (s.chairTrap === 'cushion') {
+      s.chairTrap = null;
+      this.emit({ e: 'snd', n: 'fart' });
+      this.gain(14, 'Taba ráült a pukipárnára', null, s.chairTrapBy);
+      s.stats.farts++;
+      this.shake(0.4);
+      this.doStun(4, 'stun', line('cushion'), 'normal');
+      return true;
+    }
+    if (s.chairTrap === 'glue') {
+      s.chairTrap = null;
+      this.gain(12, 'Taba odaragadt a székhez', null, s.chairTrapBy);
+      s.stats.glued++;
+      this.doStun(12, 'stuck', line('glue'), 'angry');
+      return true;
+    }
+    return false;
   }
 
   // Elérhető pont egy célhoz közel (a padok közé nem megy be)
@@ -702,7 +785,10 @@ export class Sim {
   finish(a) {
     const T = this.s.taba;
     if (a.kind === 'fix') this.fixDone(a.task);
-    if (a.kind === 'laptop') T.sit = false;
+    if (a.kind === 'laptop' || a.kind === 'update') T.sit = false;
+    if (a.kind === 'update') { this.s.winUpdate = null; if (a.phase === 'do' && a.t <= 0) this.say(line('updEnd')); }
+    if (a.kind === 'call' && a.phase === 'do' && a.t <= 0) this.say(line('callEnd'));
+    if (a.kind === 'away') { if (T.hidden && a.t <= 0) this.say(line('paBack'), 3); T.hidden = false; }
     this.last = a.kind;
     this.act = null;
   }
@@ -715,14 +801,14 @@ export class Sim {
       case 'plug': s.plug = true; s.cd.outlet = 25; break;
       case 'draw': s.drawOn = false; s.cd.draw = 20; break;
       case 'hdmi': s.hdmi = true; s.cd.hdmi = 25; break;
-      case 'usb': s.usb = false; this.say('Na, ezt a pendrive-ot elkobzom.'); break;
+      case 'usb': s.usb = false; this.say(line('usbTake')); break;
       case 'doodle': s.doodle = false; s.board = 0; s.cd.board = 15; break;
       case 'window': s.win = false; s.cd.window = 25; break;
       case 'lapget': {
         const lap = s.items[0];
         if (['bin', 'locker', 'floor'].includes(s.laptop) && lap.held == null) {
           s.laptop = 'desk'; lap.x = P.laptop.x; lap.y = P.laptop.y; lap.z = P.laptop.z; lap.loc = null;
-          this.say('Megvan! Ki dugta ide?!', 2.6, 'angry');
+          this.say(line('lapFound'), 2.6, 'angry');
           this.searches = 0;
         }
         break;
@@ -735,7 +821,7 @@ export class Sim {
       }
       case 'projbroken': this.projLost = true; break;
       case 'wc':
-        if (this.hunt) this.say(pick(LINES.wcEmpty));
+        if (this.hunt) this.say(line('wcEmpty'));
         this.hunt = null;
         for (const p of Object.values(s.players)) p.wc = 0;
         break;
@@ -754,10 +840,21 @@ export class Sim {
       n.t -= dt;
       if (n.t > 0) continue;
       this.notices.splice(i, 1);
-      if (n.id === 'phone') this.tasks.push({ id: 'phone', item: n.item, spot: this.reach(n.x, n.z), dur: 1.5, say: 'Kinek csörög a telefonja?!' });
-      else if (n.id === 'projbroken') this.tasks.push({ id: 'projbroken', spot: FIX.proj.spot, dur: 6, say: 'Mi történt a projektorral?! Ki lőtte szét?!' });
+      if (n.id === 'phone') this.tasks.push({ id: 'phone', item: n.item, spot: this.reach(n.x, n.z), dur: 1.5, say: 'fixPhone' });
       else if (n.id === 'lights' && s.lights) continue;
       else if (FIX[n.id]) this.tasks.push({ id: n.id, ...FIX[n.id] });
+    }
+
+    // késleltetett reakciók (pl. „A fikuszom!”)
+    for (let i = this.reacts.length - 1; i >= 0; i--) {
+      const r = this.reacts[i];
+      r.t -= dt; r.life -= dt;
+      if (r.life <= 0) { this.reacts.splice(i, 1); continue; }
+      if (r.t <= 0 && this.countT <= 0 && !T.hidden && this.sayT < 0.6 && this.endT <= 0) {
+        this.reacts.splice(i, 1);
+        this.say(line(r.key, r.vars), 3, r.mood);
+        break;
+      }
     }
 
     if (this.stun > 0) {
@@ -765,6 +862,8 @@ export class Sim {
       T.st = this.stunKind;
       if (this.stun <= 0) {
         if (this.act && this.act.kind === 'fix') this.tasks.unshift(this.act.task);
+        if (this.stunKind === 'stuck') { T.chair = 40; this.chairLineT = 2; }
+        if (this.act && EVENT_KINDS.includes(this.act.kind)) this.finish(this.act);
         T.sit = false; this.last = 'laptop'; this.act = null;
       }
     } else if (this.countT > 0) {
@@ -779,11 +878,20 @@ export class Sim {
       if (L.t <= 0) { this.look = null; if (this.act && this.act.phase === 'do') this.wantYaw = this.act.spot.yaw; }
     } else {
       let a = this.act;
-      if (a && this.tasks.length && !['fix', 'search', 'drag'].includes(a.kind)) { this.finish(a); a = null; }
+      if (a && this.tasks.length && !['fix', 'search', 'drag', ...EVENT_KINDS].includes(a.kind)) { this.finish(a); a = null; }
+      if (this.eventT <= 0 && !this.tasks.length && this.endT <= 0 && !inWC(T.x) && (!a || BUSY.includes(a.kind))) {
+        if (a) this.finish(a);
+        this.startEvent(); a = this.act;
+      }
       if (!a) { this.startNext(); a = this.act; }
-      if (a.phase === 'go') {
+      if (a.pre > 0) {
+        // a hangosbemondót hallgatja
+        a.pre -= dt;
+        T.st = 'warn'; vis = 'busy';
+        if (a.pre <= 0) this.say(line('paLeave'), 3);
+      } else if (a.phase === 'go') {
         T.st = a.kind === 'drag' ? 'drag' : 'walk'; vis = 'full';
-        let left = (a.kind === 'fix' || a.kind === 'search' ? 2.3 : 1.7) * dt;
+        let left = (a.kind === 'fix' || a.kind === 'search' ? 2.3 : 1.7) * (1 + 0.35 * T.stress) * (T.chair > 0 ? 0.7 : 1) * dt;
         while (left > 0 && a.path.length) {
           const t = a.path[0];
           const d = dist(T.x, T.z, t.x, t.z);
@@ -799,10 +907,13 @@ export class Sim {
           if (dist(T.x, T.z, it.x, it.z) < 0.5 && this.canStun()) {
             it.gone = true;
             this.emit({ e: 'snd', n: 'slip' });
-            this.gain(13, 'Taba elcsúszott a banánhéjon!', null, it.by);
+            this.gain(13, 'Taba elcsúszott a banánhéjon', null, it.by);
+            s.stats.slips++;
+            this.shake(0.5);
             if (a.kind === 'fix') this.tasks.unshift(a.task);
+            if (EVENT_KINDS.includes(a.kind)) this.finish(a);
             this.act = null;
-            this.doStun(4, 'slip', pick(LINES.slip));
+            this.doStun(4, 'slip', line('slip'));
             break;
           }
         }
@@ -815,15 +926,31 @@ export class Sim {
           this.wantYaw = a.spot.yaw + (hunting ? 1.3 : 0.95) * Math.sin((a.dur - a.t) * (hunting ? 1.8 : 0.9));
         } else if (a.kind === 'patrol' || a.kind === 'search') {
           T.st = 'walk'; vis = 'full';
+        } else if (a.kind === 'update') {
+          T.st = 'laptop'; vis = 'none'; T.sit = true;
+          s.winUpdate = Math.min(99, Math.floor(100 * (1 - a.t / a.dur) * 0.9 + (a.t < 3 ? 9 : 0)));
+          if ((a.m -= dt) <= 0) { a.m = 5; this.say(line('updMid'), 3); }
+        } else if (a.kind === 'call') {
+          T.st = 'phone'; vis = 'none';
+          if ((a.m -= dt) <= 0) { a.m = 3; this.say(LINES.callMid[a.li++ % LINES.callMid.length], 2.8); }
+        } else if (a.kind === 'away') {
+          T.st = 'walk'; vis = 'none';
         } else {
           // elfoglalt: háttal van / lefelé néz, de néha felpillant
           T.st = a.kind === 'fix' ? 'fix' : a.kind; vis = 'busy';
           if (a.kind === 'board') s.board = Math.min(1, s.board + dt * 0.07);
+          // motyogás munka közben
+          a.m = (a.m ?? rnd(3, 6)) - dt;
+          if (a.m <= 0 && this.sayT < 0) {
+            a.m = rnd(7, 11);
+            const mk = { laptop: 'mumbleLaptop', projector: 'mumbleProjector', board: 'mumbleBoard' }[a.kind] || 'mumbleFix';
+            this.say(line(mk), 2.6);
+          }
           a.g -= dt;
           if (a.g <= 0) {
             if (a.g > -0.75) { T.st = 'warn'; }
             else if (a.g > -2.4) { T.st = 'glance'; vis = 'full'; this.wantYaw = yawTo(T.x, T.z, 0, 1.2); }
-            else { a.g = rnd(5, 9); this.wantYaw = a.spot.yaw; }
+            else { a.g = rnd(5, 9) * (1 - 0.45 * T.stress); this.wantYaw = a.spot.yaw; }
           }
         }
         if (a.t <= 0 && this.act === a) this.finish(a);
@@ -856,8 +983,18 @@ export class Sim {
     }
 
     s.t -= dt;
-    if (s.t <= 0) { s.t = 0; this.end('lost', 'Kicsengettek! Taba simán megtartotta az órát.'); return; }
+    if (s.t <= 0) { s.t = 0; this.end('lost', 'Kicsengettek. Taba megtartotta az órát.', 'time'); return; }
     for (const k in s.cd) if (s.cd[k] > 0) s.cd[k] -= dt;
+    this.eventT -= dt;
+    T.stress = Math.min(1, s.meter / 100);
+    if (T.green > 0) T.green -= dt;
+    if (T.chair > 0) {
+      T.chair -= dt;
+      if ((this.chairLineT -= dt) <= 0) { this.chairLineT = rnd(9, 13); this.react('glueChair', 0, 'normal'); }
+    }
+    for (const [lvl, key] of [[50, 'stress50'], [75, 'stress75']]) {
+      if (s.meter >= lvl && !this.saidStress[lvl]) { this.saidStress[lvl] = true; this.react(key, 0.5, 'angry'); }
+    }
 
     this.stepTaba(dt);
     if (s.phase !== 'play') return;
@@ -890,7 +1027,9 @@ export class Sim {
       s.cloud.t -= dt;
       if (!s.cloud.hit && this.canStun() && dist(T.x, T.z, s.cloud.x, s.cloud.z) < 3.2) {
         s.cloud.hit = true;
-        this.doStun(6, 'stun', 'Khh-khh! Mi ez a szag?! Ablakot nyissatok!', 'angry');
+        this.doStun(6, 'stun', line('stink'), 'angry');
+        T.green = 14;
+        s.stats.stinks++;
         this.emit({ e: 'snd', n: 'cough' });
         this.gain(12, 'Taba fuldoklik a bűztől', 'stinkhit', s.cloud.by);
       }
@@ -909,6 +1048,7 @@ export class Sim {
     if (this.stun > 0) rate += 0.6;
     if (s.win) rate += 0.1;
     if (inWC(T.x)) rate += 0.3;
+    if (T.chair > 0) rate += 0.25;
     if (rate > 0) { s.meter = Math.min(METER_MAX, s.meter + (rate * dt) / this.scale()); this.checkWin(); }
     if (s.phase !== 'play') return;
 
@@ -923,10 +1063,12 @@ export class Sim {
       // mosdó: ha valaki túl sokáig van kint, Taba utánamegy
       if (pWC && !p.dragged) {
         p.wc += dt;
+        p.wcTotal = (p.wcTotal || 0) + dt;
         if (p.wc > WC_LIMIT && !this.hunt && this.endT <= 0) {
           this.hunt = p.id;
           if (this.act && ['laptop', 'board', 'projector', 'lecture', 'patrol'].includes(this.act.kind)) this.finish(this.act);
-          this.tasks.unshift({ id: 'wc', spot: { x: P.wcCenter.x, z: P.wcCenter.z, yaw: PI / 2 }, dur: 3.5, say: `Hol van már ${p.name}? Megnézem a mosdóban!`, mood: 'angry' });
+          this.tasks.unshift({ id: 'wc', spot: { x: P.wcCenter.x, z: P.wcCenter.z, yaw: PI / 2 }, dur: 3.5, say: line('wcHunt', { n: p.name }), mood: 'angry' });
+          s.stats.wcHunts++;
           this.gain(4, 'Taba kiment a teremből – szabad a pálya!', null);
         }
       } else if (!pWC) p.wc = 0;

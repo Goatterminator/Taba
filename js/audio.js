@@ -83,6 +83,10 @@ const SOUNDS = {
   },
   scream: () => { tone(700, 0.7, { type: 'sawtooth', vol: 0.22, to: 1300 }); tone(720, 0.7, { type: 'square', vol: 0.1, to: 1250 }); },
   slip: () => { tone(300, 0.35, { type: 'sine', vol: 0.3, to: 1400 }); noise(0.25, { vol: 0.5, freq: 200, q: 0.7, delay: 0.4 }); tone(90, 0.3, { type: 'sine', vol: 0.45, to: 40, delay: 0.4 }); },
+  pa: () => { tone(784, 0.35, { type: 'sine', vol: 0.2 }); tone(622, 0.5, { type: 'sine', vol: 0.2, delay: 0.32 }); },
+  chime: () => { tone(523, 0.12, { type: 'triangle', vol: 0.15 }); tone(659, 0.12, { type: 'triangle', vol: 0.15, delay: 0.1 }); tone(392, 0.25, { type: 'triangle', vol: 0.15, delay: 0.2 }); },
+  ringtone: () => { for (let i = 0; i < 6; i++) tone([988, 784, 659, 784, 988, 1319][i], 0.12, { type: 'square', vol: 0.08, delay: i * 0.13 }); },
+  combo: () => { tone(880, 0.06, { type: 'square', vol: 0.1 }); tone(1320, 0.1, { type: 'square', vol: 0.1, delay: 0.06 }); },
   bell: () => { for (let i = 0; i < 10; i++) tone(1568, 0.09, { type: 'square', vol: 0.09, delay: i * 0.1 }); },
   strike: () => { tone(196, 0.5, { type: 'sawtooth', vol: 0.3 }); tone(207, 0.5, { type: 'sawtooth', vol: 0.3 }); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.22, delay: i * 0.13 })),
@@ -110,7 +114,7 @@ export const hasHuVoice = () => !!huVoice();
 function babble(text, mood, vol) {
   if (!ctx || ctx.state !== 'running') return;
   const syl = Math.min(22, Math.max(3, Math.round(text.replace(/[^a-záéíóöőúüű]/gi, '').length / 2.6)));
-  const base = mood === 'yell' ? 230 : mood === 'angry' ? 170 : 125;
+  const base = mood === 'pa' ? 210 : mood === 'yell' ? 230 : mood === 'angry' ? 170 : 125;
   const step = mood === 'yell' ? 0.085 : 0.11;
   for (let i = 0; i < syl; i++) {
     const f = base * (0.85 + Math.random() * 0.4);
@@ -118,7 +122,7 @@ function babble(text, mood, vol) {
   }
 }
 
-export function speak(text, mood = 'normal', vol = 1) {
+export function speak(text, mood = 'normal', vol = 1, stress = 0) {
   if (muted || !text) return;
   vol = Math.max(0.15, Math.min(1, vol));
   try {
@@ -128,9 +132,10 @@ export function speak(text, mood = 'normal', vol = 1) {
     const u = new SpeechSynthesisUtterance(mood === 'yell' ? text.toUpperCase() : text);
     u.voice = v; u.lang = v.lang || 'hu-HU';
     u.volume = vol;
-    if (mood === 'yell') { u.rate = 1.3; u.pitch = 1.35; }
-    else if (mood === 'angry') { u.rate = 1.18; u.pitch = 0.95; }
-    else { u.rate = 1.05; u.pitch = 0.75; }
+    if (mood === 'pa') { u.rate = 0.95; u.pitch = 1.15; }
+    else if (mood === 'yell') { u.rate = 1.3; u.pitch = 1.35; }
+    else if (mood === 'angry') { u.rate = 1.18 + stress * 0.15; u.pitch = 0.95 + stress * 0.15; }
+    else { u.rate = 1.05 + stress * 0.25; u.pitch = 0.75 + stress * 0.2; }
     ss.cancel();
     ss.speak(u);
   } catch { babble(text, mood, vol); }

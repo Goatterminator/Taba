@@ -31,11 +31,13 @@
         <span id="meterPct">0%</span>
       </div>
       <div id="strikes" class="pill" title="Lebukások"><i>1</i><i>2</i><i>3</i></div>
-      <button id="btnMute" class="pill mini" aria-label="Hang">🔊</button>
+      <button id="btnMute" class="pill mini" aria-label="Hang"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
       <button id="btnExit" class="pill mini" aria-label="Kilépés">✕</button>
     </div>
 
-    <div id="status" class="pill"><span id="eye">👁</span> <span id="tabaSt"></span></div>
+    <div id="status" class="pill"><span id="tabaSt"></span></div>
+    <div id="evt" hidden><b></b><span></span></div>
+    <div id="combo" hidden></div>
     <div id="toasts"></div>
     <div id="labels"><div id="bubble" class="bubble" hidden></div></div>
     <div id="banner" hidden></div>
@@ -51,7 +53,7 @@
     <!-- Rajzolás Taba laptopján: ami ide kerül, az megy ki a vászonra -->
     <div id="drawUI" hidden>
       <div class="drawTop">
-        <span id="drawStatus" class="pill">👁</span>
+        <span id="drawStatus" class="pill"></span>
         <span class="drawHint">Rajzolj! A „Kivetítés” után ez lesz a vásznon.</span>
       </div>
       <canvas id="drawCanvas"></canvas>
@@ -81,11 +83,11 @@
         <input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="KÓD">
         <button id="btnJoin" class="btn">Csatlakozás</button>
       </div>
-      <button id="btnShop" class="btn shopBtn">🛒 Bolt – skinek <span class="coins">🪙 <b id="menuCoins">0</b></span></button>
+      <button id="btnShop" class="btn shopBtn">Bolt – skinek <span class="coins"><i class="coin"></i> <b id="menuCoins">0</b></span></button>
       <p id="menuMsg" class="msg" hidden></p>
       <div class="row small">
         <button id="btnHelp" class="link">Hogyan kell játszani?</button>
-        <button id="btnInstall" class="link" hidden>📲 Telepítés a telefonra</button>
+        <button id="btnInstall" class="link" hidden>Telepítés a telefonra</button>
       </div>
       <p class="tiny">Fektetett telefonnal a legjobb. iPhone-on: Megosztás → „Főképernyőhöz adás”.</p>
     </div>
@@ -96,7 +98,7 @@
     <div class="card">
       <h2>Szobakód</h2>
       <div id="lobbyCode">----</div>
-      <button id="btnShare" class="link">🔗 Meghívó link másolása</button>
+      <button id="btnShare" class="link">Meghívó link másolása</button>
       <h3>Diákok a teremben</h3>
       <ul id="lobbyList"></ul>
       <p id="lobbyMsg" class="msg"></p>
@@ -113,6 +115,7 @@
       <h1 id="endTitle"></h1>
       <p id="endReason" class="sub"></p>
       <div id="endStats"></div>
+      <div id="endLog"></div>
       <p id="endWait" class="msg" hidden>Várakozás a szoba gazdájára…</p>
       <div class="row">
         <button id="btnEndExit" class="btn">Főmenü</button>
@@ -124,7 +127,7 @@
   <!-- Bolt -->
   <div id="shop" class="screen shopScreen" hidden>
     <div class="card shopCard">
-      <div class="shopHead"><h2>Bolt</h2><div class="coins">🪙 <b id="shopCoins">0</b></div></div>
+      <div class="shopHead"><h2>Bolt</h2><div class="coins"><i class="coin"></i> <b id="shopCoins">0</b></div></div>
       <div id="skinGrid"></div>
       <div class="row">
         <button id="btnShopClose" class="btn">Vissza</button>

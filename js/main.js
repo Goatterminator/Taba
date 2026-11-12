@@ -7,6 +7,9 @@ import { play, speak, unlockAudio, setMuted } from './audio.js';
 import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js';
 
 const $ = (id) => document.getElementById(id);
+const ICON_SOUND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+const ICON_MUTED = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+const COIN = '<i class="coin" aria-hidden="true"></i>';
 const PI = Math.PI;
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -131,9 +134,9 @@ function renderShop() {
     b.className = 'skin' + (sk.id === shopSel ? ' sel' : '') + (sk.id === wallet.skin ? ' eq' : '') + (!owned && sk.price > wallet.coins ? ' poor' : '');
     const col = '#' + studentLook(sk.id, 0).shirt.toString(16).padStart(6, '0');
     b.innerHTML = `<span class="ic" style="--c:${col}"></span><span class="nm"></span><span class="pr"></span>`;
-    b.querySelector('.ic').textContent = sk.icon;
+    b.querySelector('.ic').textContent = sk.name[0];
     b.querySelector('.nm').textContent = sk.name;
-    b.querySelector('.pr').textContent = sk.id === wallet.skin ? '✔ Rajtad' : owned ? 'Megvan' : `🪙 ${sk.price}`;
+    b.querySelector('.pr').innerHTML = sk.id === wallet.skin ? 'Rajtad' : owned ? 'Megvan' : `${COIN} ${sk.price}`;
     b.onclick = () => { shopSel = sk.id; renderShop(); };
     grid.appendChild(b);
   }
@@ -141,7 +144,7 @@ function renderShop() {
   const btn = $('btnShopBuy');
   const owned = wallet.owned.includes(sel.id);
   btn.disabled = sel.id === wallet.skin || (!owned && sel.price > wallet.coins);
-  btn.textContent = sel.id === wallet.skin ? `✔ ${sel.name} rajtad van` : owned ? `Felveszem: ${sel.name}` : sel.price > wallet.coins ? `Még ${sel.price - wallet.coins} 🪙 kell` : `Megveszem: ${sel.name} (🪙 ${sel.price})`;
+  btn.textContent = sel.id === wallet.skin ? `${sel.name} rajtad van` : owned ? `Felveszem: ${sel.name}` : sel.price > wallet.coins ? `Még ${sel.price - wallet.coins} érme kell` : `Megveszem: ${sel.name} (${sel.price} érme)`;
   $('shopCoins').textContent = wallet.coins;
 }
 $('btnShop').onclick = () => { unlockAudio(); shopSel = wallet.skin; mode = 'shop'; show('shop'); renderShop(); };
@@ -167,9 +170,9 @@ $('btnAgain').onclick = () => { if (sim) sim.start(); };
 $('btnExit').onclick = () => { ctl.release(); if (confirm('Kilépsz az óráról?')) leave(); };
 $('btnMute').onclick = () => {
   muted = !muted; setMuted(muted); store.set('taba.muted', muted ? '1' : '0');
-  $('btnMute').textContent = muted ? '🔇' : '🔊';
+  $('btnMute').innerHTML = muted ? ICON_MUTED : ICON_SOUND;
 };
-$('btnMute').textContent = muted ? '🔇' : '🔊';
+$('btnMute').innerHTML = muted ? ICON_MUTED : ICON_SOUND;
 $('btnShare').onclick = async () => {
   const url = `${location.origin}${location.pathname}?room=${code}`;
   try {
@@ -216,19 +219,97 @@ function enterEnd() {
   ctl.enabled = false; ctl.release();
   $('hud').hidden = true;
   const won = view.phase === 'won';
-  $('endTitle').textContent = won ? 'GYŐZELEM! 🎉' : 'LEBUKTATOK! 😬';
+  $('endTitle').textContent = won ? 'GYŐZELEM' : 'LEBUKTATOK';
   $('endReason').textContent = view.reason;
+  renderReport();
   const left = Math.ceil(view.t);
   const mine = view.players[myId];
   const reward = coinReward(view, mine);
   wallet.coins += reward;
   saveWallet();
-  $('endStats').innerHTML = `<div><b>${Math.floor(view.meter)}%</b>szívatás</div><div><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>maradt</div><div><b>${view.strikes}/3</b>lebukás</div><div><b>+${reward} 🪙</b>érme (össz.: ${wallet.coins})</div>`;
+  $('endStats').innerHTML = `<div><b>${Math.floor(view.meter)}%</b>szívatás</div><div><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>maradt</div><div><b>${view.strikes}/3</b>lebukás</div><div><b>+${reward}</b>érme (össz.: ${wallet.coins})</div>`;
   $('btnAgain').hidden = role === 'client';
   $('endWait').hidden = role !== 'client';
   show('end');
   play(won ? 'win' : 'lose');
 }
+// beírás az osztálynaplóba: mi történt az órán, és ki mivel tűnt ki
+function renderReport() {
+  const s = view, st = s.stats || {};
+  const verdict = {
+    won: '„Az osztály a feudalizmus helyett az anarchiát választotta. Az óra nem volt megtartható.”',
+    strikes: '„Három figyelmeztetés után az óra az igazgatói irodában folytatódott.”',
+    hit: '„A tanárt szivacslövedék érte. A fegyelmi eljárás folyamatban.”',
+    time: '„Az óra megtartva. A tanulók magatartása: változó.”',
+  }[s.endKind] || '';
+  const L = [];
+  const add = (cond, txt) => { if (cond) L.push(txt); };
+  add(st.slips, `Taba ${st.slips}× tesztelte a gravitációt egy banánhéjon.`);
+  add(st.farts, `${st.farts} gyanús hang hallatszott a tanári szék felől.`);
+  add(st.glued, 'A tanár úr egy ideig a székével együtt tanított.');
+  add(st.snakes, 'Egy gumikígyó miatt sikítás hallatszott a folyosóig.');
+  add(st.stinks, `${st.stinks} bűzbomba. A terem szellőztetésre szorul. Hosszú szellőztetésre.`);
+  add(st.megas, `${st.megas}× megafon. A szomszéd teremben is jegyzeteltek.`);
+  add(st.lapOut, 'A tanári laptop az ablakon át elhagyta az épületet.');
+  add(st.draws, `${st.draws} saját „mű” került kivetítésre.`);
+  add(st.doodles, 'A tábla kortárs művészeti alkotással gazdagodott.');
+  add(st.shots, `${st.shots} szivacslövedék, ${st.broken} eltalált berendezési tárgy.`);
+  add(st.planes, `${st.planes} papírrepülő ért célba.`);
+  add(st.wcHunts, `Taba ${st.wcHunts}× járőrözött a mosdóban.`);
+  add(st.maxCombo >= 3, `Leghosszabb szívatás-sorozat: ${st.maxCombo} egymás után.`);
+  if (!L.length) L.push('Különösebb esemény nem történt. Taba szerint ez élete legszebb órája volt.');
+
+  const ps = Object.values(s.players);
+  const titles = new Map();
+  const give = (p, t) => { if (p && !titles.has(p.id)) titles.set(p.id, t); };
+  const by = (f) => [...ps].sort((a, b) => f(b) - f(a))[0];
+  if (ps.length) {
+    give(by((p) => p.score), 'Főszabotőr');
+    const c = by((p) => p.caught || 0); if (c && c.caught) give(c, 'Az igazgató kedvence');
+    const w = by((p) => p.wcTotal || 0); if (w && (w.wcTotal || 0) > 12) give(w, 'A mosdó lovagja');
+    for (const p of ps) if (!p.caught && p.score > 5) give(p, 'A láthatatlan');
+    for (const p of ps) give(p, p.score < 3 ? 'Mintadiák (sajnos)' : 'Lelkes közreműködő');
+  }
+  const box = $('endLog');
+  box.textContent = '';
+  const h = document.createElement('h3'); h.textContent = 'Beírás az osztálynaplóba'; box.appendChild(h);
+  const v = document.createElement('p'); v.className = 'verdict'; v.textContent = verdict; box.appendChild(v);
+  const ul = document.createElement('ul');
+  for (const t of L.slice(0, 6)) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }
+  box.appendChild(ul);
+  if (ps.length > 1 || ps.length === 1) {
+    const tl = document.createElement('div'); tl.className = 'titles';
+    for (const p of ps) {
+      const d = document.createElement('div');
+      const b = document.createElement('b'); b.textContent = p.name + (p.id === myId ? ' (te)' : '');
+      d.appendChild(b); d.appendChild(document.createTextNode(titles.get(p.id) || ''));
+      tl.appendChild(d);
+    }
+    box.appendChild(tl);
+  }
+  if (s.final) { const q = document.createElement('p'); q.className = 'final'; q.textContent = `Taba utolsó szavai: „${s.final}”`; box.appendChild(q); }
+}
+
+let comboTimer = 0;
+function combo(n) {
+  const el = $('combo');
+  const words = ['', '', 'DUPLA', 'TRIPLA', 'NÉGYES SOROZAT', 'TELJES KÁOSZ'];
+  el.textContent = `${words[Math.min(n, 5)]}  ×${n}`;
+  el.hidden = true; void el.offsetWidth; el.hidden = false;
+  clearTimeout(comboTimer);
+  comboTimer = setTimeout(() => (el.hidden = true), 1600);
+  play('combo');
+}
+let evtTimer = 0;
+function eventBanner(title, desc) {
+  const el = $('evt');
+  el.querySelector('b').textContent = title;
+  el.querySelector('span').textContent = desc;
+  el.hidden = true; void el.offsetWidth; el.hidden = false;
+  clearTimeout(evtTimer);
+  evtTimer = setTimeout(() => (el.hidden = true), 4200);
+}
+
 function leave() {
   closeDraw();
   if (net) { const n = net; net = null; n.close(); }
@@ -270,20 +351,26 @@ function banner(big, small) {
 function handleEvent(ev) {
   if (!ev) return;
   switch (ev.e) {
-    case 'gain': toast(`+${ev.v}  ${ev.m}`, 'good'); play('gain'); break;
+    case 'gain': toast(`+${ev.v}  ${ev.m}`, 'good'); play('gain'); world.npcReact('laugh', 1.8); break;
+    case 'combo': combo(ev.n); break;
+    case 'evt': eventBanner(ev.t, ev.d); world.npcReact('laugh', 1.2); break;
+    case 'shake': world.shake(ev.a); break;
     case 'toast': if (!ev.pid || ev.pid === myId) toast(ev.m, ev.k); break;
     case 'say': {
       if (mode !== 'play') break;
       const T = view.taba;
       let vol = 1 - Math.hypot(T.x - me.x, T.z - me.z) / 16;
       if (inWC(T.x) !== inWC(me.x)) vol *= 0.55;
-      speak(ev.m, ev.mood, ev.mood === 'yell' ? 1 : vol);
+      speak(ev.m, ev.mood, ev.mood === 'yell' || ev.mood === 'pa' ? 1 : vol, ev.stress || 0);
+      if (ev.mood === 'yell') world.npcReact('duck', 2.4);
+      if (ev.mood === 'pa') toast('Hangosbemondó: ' + ev.m, 'info');
       break;
     }
     case 'snd': play(ev.n); break;
     case 'strike':
       banner(ev.m, ev.hit ? 'Eltaláltátok Tabát!' : ev.name ? `Taba elkapta: ${ev.name}${ev.wc ? ' a mosdóban' : ''}` : '');
       play('strike');
+      world.npcReact('gasp', 2.6);
       if (ev.pid === myId) faceT = 2.8;
       try { navigator.vibrate?.(ev.pid === myId ? [120, 60, 200] : 80); } catch { /* ignore */ }
       break;
@@ -424,10 +511,10 @@ addEventListener('resize', () => { if (drawOpen) sizeDraw(); });
 
 // ---- HUD ----------------------------------------------------------------
 const ST = {
-  laptop: '💻 laptopozik', projector: '📽️ a projektorral babrál', board: '✍️ a táblára ír', fix: '🔧 javít valamit',
-  lecture: '🗣️ magyaráz – figyel!', walk: '🚶 járkál – figyel!', warn: '❓ gyanakszik…', glance: '👀 FELNÉZ!', look: '👀 odanéz!',
-  count: '😡 számol!', stun: '😵 kiakadt', stuck: '🪑 odaragadt a székhez',
-  yell: '🤬 ORDIBÁL!', slip: '🍌 elcsúszott!', scared: '🐍 sikít!', drag: '😠 visszavonszol valakit',
+  laptop: 'laptopozik', projector: 'a projektorral bajlódik', board: 'a táblára ír', fix: 'javít valamit',
+  lecture: 'magyaráz – figyel', walk: 'járkál – figyel', warn: 'gyanakszik…', glance: 'FELNÉZ!', look: 'odanéz!',
+  count: 'számol', stun: 'kiakadt', stuck: 'odaragadt a székhez',
+  yell: 'ORDIBÁL', slip: 'a földön fekszik', scared: 'sikít', drag: 'visszavonszol valakit', phone: 'telefonál az anyukájával',
 };
 const cache = {};
 function setText(el, key, v) { if (cache[key] !== v) { cache[key] = v; el.textContent = v; } }
@@ -446,11 +533,12 @@ function updateHud() {
   }
   const seen = p && p.seen, sus = p ? p.sus : 0;
   const meWC = inWC(me.x), tabaWC = inWC(s.taba.x);
-  let stText = `Taba ${ST[s.taba.st] || ''}${seen ? ' · LÁT TÉGED' : ''}`;
-  if (p && p.dragged) stText = '😩 Taba visszavonszol a helyedre…';
-  else if (meWC && !tabaWC) stText = `🚽 Mosdó – itt nem tudsz szabotálni · ${Math.floor(p ? p.wc : 0)}/${WC_LIMIT} mp`;
-  else if (meWC) stText = `🚽 Taba a mosdóban van!${seen ? ' · LÁT TÉGED' : ''}`;
-  else if (tabaWC) stText = '🚽 Taba kiment a mosdóba – most szívass!';
+  let stText = `Taba ${ST[s.taba.st] || ''}${s.winUpdate != null && s.taba.st === 'laptop' ? ' (frissítést néz)' : ''}${s.taba.chair > 0 ? ', széket visel' : ''}${seen ? ' · LÁT TÉGED' : ''}`;
+  if (p && p.dragged) stText = 'Taba visszavonszol a helyedre…';
+  else if (s.taba.hidden) stText = 'Taba nincs a teremben – szabad a pálya';
+  else if (meWC && !tabaWC) stText = `Mosdó – itt nem tudsz szabotálni · ${Math.floor(p ? p.wc : 0)}/${WC_LIMIT} mp`;
+  else if (meWC) stText = `Taba a mosdóban van!${seen ? ' · LÁT TÉGED' : ''}`;
+  else if (tabaWC) stText = 'Taba a mosdóban keres valakit – most szívass!';
   setText($('tabaSt'), 'st', stText);
   if (drawOpen) { setText($('drawStatus'), 'dst', stText); $('drawStatus').className = 'pill ' + (sus > 0.05 ? 'caught' : seen ? 'seen' : ''); }
   const cls = 'pill ' + (sus > 0.05 ? 'caught' : seen || (meWC && p && p.wc > WC_LIMIT - 6) ? 'seen' : 'safe');
@@ -490,9 +578,9 @@ function updateHud() {
     $('btnUse').hidden = !(it && ITEMS[it.type].use);
     if (it) {
       const d = ITEMS[it.type];
-      h.textContent = `${d.icon} ${d.name}${it.ammo != null ? ` ×${it.ammo}` : ''}`;
+      h.textContent = `${d.name}${it.ammo != null ? ` ×${it.ammo}` : ''}`;
       const sm = document.createElement('small');
-      sm.textContent = d.contraband ? '⚠ Taba ne lássa nálad! · ' + d.hint : d.hint;
+      sm.textContent = d.contraband ? 'Taba ne lássa nálad! · ' + d.hint : d.hint;
       h.appendChild(sm);
       if (d.use) $('btnUse').textContent = d.use;
     }
@@ -539,7 +627,7 @@ function updateLobby() {
   ul.textContent = '';
   for (const p of Object.values(view.players)) {
     const li = document.createElement('li');
-    li.textContent = `${skinById(p.skin).icon} ${p.name}${p.id === myId ? ' (te)' : ''}`;
+    li.textContent = `${p.name}${p.id === myId ? ' (te)' : ''}`;
     li.style.setProperty('--c', '#' + studentLook(p.skin, p.seat).shirt.toString(16).padStart(6, '0'));
     ul.appendChild(li);
   }

@@ -103,7 +103,6 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
 .mini { padding: 6px 9px; font-size: 14px; cursor: pointer; line-height: 1; }
 #status { position: absolute; top: calc(50px + var(--sat)); left: calc(10px + var(--sal)); font-size: 13px; font-weight: 600; pointer-events: none; }
 #status.seen { color: var(--orange); }
-#status.safe #eye { opacity: 0.45; }
 #status.caught { color: #fff; background: rgba(200, 30, 30, 0.85); }
 #toasts { position: absolute; top: calc(86px + var(--sat)); left: calc(10px + var(--sal)); display: flex; flex-direction: column; gap: 5px; align-items: flex-start; pointer-events: none; max-width: 70vw; }
 .toast { background: var(--ink); border-radius: 8px; padding: 5px 10px; font-size: 13px; font-weight: 600; animation: toast 3.2s forwards; }
@@ -233,3 +232,29 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
 #drawColors { display: flex; gap: 5px; }
 #drawColors button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.35); background: var(--c); cursor: pointer; padding: 0; }
 #drawColors button.on { border-color: #fff; transform: scale(1.12); }
+
+/* ---- érme, esemény, kombó, napló ---- */
+.coin { display: inline-block; width: 0.85em; height: 0.85em; border-radius: 50%; vertical-align: -0.1em;
+  background: radial-gradient(circle at 35% 35%, #fff3b0, #f5c518 45%, #b8860b); box-shadow: inset 0 0 0 1.5px #a07408; }
+#evt {
+  position: absolute; left: 50%; top: calc(54px + var(--sat)); transform: translateX(-50%); z-index: 3;
+  background: rgba(10, 14, 18, 0.88); border-left: 4px solid var(--yellow); border-radius: 8px; padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 2px; pointer-events: none; max-width: min(460px, 80vw); animation: evtIn 4.2s forwards;
+}
+#evt b { color: var(--yellow); font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; }
+#evt span { font-size: 13px; opacity: 0.9; }
+#combo {
+  position: absolute; right: calc(16px + var(--sar)); top: 34%; pointer-events: none; font-weight: 900; font-size: clamp(20px, 4.5vw, 34px);
+  color: var(--yellow); letter-spacing: 0.04em; text-shadow: 0 3px 0 #6b4a00, 0 0 18px rgba(0, 0, 0, 0.6); animation: comboIn 1.6s forwards; white-space: nowrap;
+}
+#endLog { text-align: left; margin: 10px 0 4px; font-size: 13.5px; line-height: 1.45; }
+#endLog h3 { text-align: left; margin: 0 0 4px; opacity: 1; color: var(--yellow); }
+#endLog .verdict { margin: 0 0 6px; font-style: italic; }
+#endLog ul { margin: 0 0 8px; padding-left: 18px; }
+#endLog .titles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+#endLog .titles div { background: rgba(0, 0, 0, 0.28); border-radius: 8px; padding: 4px 9px; font-size: 12.5px; display: flex; flex-direction: column; }
+#endLog .titles b { font-size: 13px; }
+#endLog .final { margin: 0; opacity: 0.85; font-size: 12.5px; }
+#end .card { max-height: calc(100dvh - 24px); overflow: auto; }
+@keyframes evtIn { 0% { opacity: 0; transform: translate(-50%, -10px); } 8% { opacity: 1; transform: translate(-50%, 0); } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes comboIn { 0% { opacity: 0; transform: scale(1.8) rotate(-4deg); } 12% { opacity: 1; transform: scale(1) rotate(-4deg); } 75% { opacity: 1; } 100% { opacity: 0; transform: rotate(-4deg); } }

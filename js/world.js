@@ -1,6 +1,6 @@
 // 3D-s megjelenítés (Three.js): a terem, Taba, a diákok, tárgyak és effektek.
 import * as THREE from '../vendor/three.module.min.js';
-import { ROOM, WC, DOOR, P, DESKS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js';
+import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js';
 
 const PI = Math.PI;
 const matCache = new Map();
@@ -172,7 +172,8 @@ export function makeHuman(o) {
     put(body, box(0.07, 0.07, 0.02, 0xf5c518), 0, 1.2, 0.17);
   }
   const head = put(body, new THREE.Group(), 0, 1.63, 0);
-  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), mat(skin)));
+  const headMat = o.hand ? new THREE.MeshLambertMaterial({ color: skin }) : mat(skin);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), headMat));
   if (o.hairStyle !== 'bald') {
     const hair = new THREE.Mesh(new THREE.SphereGeometry(0.215, 16, 10, 0, PI * 2, 0, PI * 0.5), mat(o.hair));
     hair.rotation.x = -0.25;
@@ -225,7 +226,7 @@ export function makeHuman(o) {
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.36, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
   shadow.rotation.x = -PI / 2;
   put(g, shadow, 0, 0.012, 0);
-  g.userData = { body, legs, arms, head, mouth, hand };
+  g.userData = { body, legs, arms, head, mouth, hand, headMat };
   return g;
 }
 
@@ -250,6 +251,15 @@ function poseHuman(h, mode, t, sit, count = 0) {
     case 'scared': aa = [-3.0, -3.0]; az = [0.5, -0.5]; by = Math.abs(Math.sin(t * 10)) * 0.25; mo = 4; break;
     case 'slip': bx = -1.45; ly = 0.18; la = [-0.9 + w * 0.3, -0.5 - w * 0.3]; aa = [-2 + w * 0.6, -2.4 - w * 0.6]; mo = 3; break;
     case 'stuck': aa = [-2.9 + w * 0.4, -2.9 - w * 0.4]; bz = Math.sin(t * 12) * 0.05; mo = 3; break;
+    case 'phone': aa = [-0.3, -2.75]; az = [0, -0.55]; hy = 0.35; hx = -0.1; mo = 1 + Math.abs(Math.sin(t * 9)) * 1.5; break;
+    // osztálytársak
+    case 'npcWrite': aa = [-1.25 + Math.sin(t * 13) * 0.06, -0.95]; hx = 0.5; break;
+    case 'npcSleep': bx = 0.5; aa = [-1.55, -1.55]; hx = 0.75; hy = 0.5; break;
+    case 'npcPhone': aa = [-1.2, -1.2]; hx = 0.75; break;
+    case 'npcLook': hy = Math.sin(t * 0.6) * 0.9; aa = [-0.9, -0.9]; break;
+    case 'laugh': by = Math.abs(Math.sin(t * 15)) * 0.035; bx = -0.12; hx = -0.35 + Math.sin(t * 15) * 0.08; aa = [-0.6, -0.6]; az = [0.25, -0.25]; mo = 3; break;
+    case 'gasp': aa = [-2.75, -2.75]; az = [0.4, -0.4]; mo = 3.5; break;
+    case 'duck': bx = 0.45; aa = [-2.9, -2.9]; az = [0.3, -0.3]; hx = 0.6; break;
   }
   if (sit) { ly = -0.3; la = [-PI / 2, -PI / 2]; }
   body.position.y = ly + by;
@@ -452,6 +462,28 @@ export function makeItem(type) {
   return g;
 }
 
+function makeChair() {
+  const ch = new THREE.Group();
+  put(ch, box(0.5, 0.07, 0.48, 0x2c3440), 0, 0.5, 0);
+  put(ch, box(0.5, 0.55, 0.07, 0x2c3440), 0, 0.85, -0.24);
+  put(ch, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.45, 8), mat(0x666666)), 0, 0.25, 0);
+  put(ch, box(0.5, 0.04, 0.06, 0x444444), 0, 0.03, 0);
+  put(ch, box(0.06, 0.04, 0.5, 0x444444), 0, 0.03, 0);
+  return ch;
+}
+const NPC_LOOKS = [
+  { shirt: 0x6b7280, pants: 0x1f2937, hair: 0x3b2a1a },
+  { shirt: 0xb45309, pants: 0x334155, hair: 0x111111 },
+  { shirt: 0x0f766e, pants: 0x1e293b, hair: 0xc79a3a },
+  { shirt: 0x9f1239, pants: 0x27272a, hair: 0x7a4a22 },
+  { shirt: 0x4338ca, pants: 0x374151, hair: 0x111111 },
+  { shirt: 0x15803d, pants: 0x1c1917, hair: 0x9a3b1a },
+  { shirt: 0xe5e7eb, pants: 0x1e3a8a, hair: 0x3b2a1a },
+  { shirt: 0x7c2d12, pants: 0x111827, hair: 0xc79a3a },
+  { shirt: 0x334155, pants: 0x3f3f46, hair: 0x111111 },
+];
+const NPC_IDLE = ['npcWrite', 'npcSleep', 'npcPhone', 'npcLook', 'npcWrite', 'npcLook', 'npcPhone', 'npcWrite', 'npcSleep'];
+
 // ---- világ --------------------------------------------------------------
 export class World {
   constructor(canvas) {
@@ -607,7 +639,13 @@ export class World {
     const sign = canvasTex(256, 96, (g, w, h) => {
       g.fillStyle = '#1d4ed8'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#fff'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('🚻 MOSDÓ', w / 2, h / 2 + 2);
+      g.font = 'bold 46px sans-serif'; g.textAlign = 'left';
+      g.fillText('MOSDÓ', 90, h / 2 + 2);
+      for (const [x, skirt] of [[24, false], [58, true]]) {
+        g.beginPath(); g.arc(x, 24, 8, 0, 7); g.fill();
+        if (skirt) { g.beginPath(); g.moveTo(x - 13, 66); g.lineTo(x, 36); g.lineTo(x + 13, 66); g.fill(); g.fillRect(x - 6, 66, 4, 18); g.fillRect(x + 2, 66, 4, 18); }
+        else { g.fillRect(x - 9, 36, 18, 30); g.fillRect(x - 8, 66, 6, 18); g.fillRect(x + 2, 66, 6, 18); }
+      }
     });
     const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.28), new THREE.MeshBasicMaterial({ map: sign }));
     sg.rotation.y = -PI / 2; sg.position.set(ROOM.x1 - 0.02, 2.55, DOOR.z); S.add(sg);
@@ -670,13 +708,7 @@ export class World {
     put(S, box(0.05, td.h, td.d - 0.1, 0x9a6836), td.x + td.w / 2 - 0.05, td.h / 2, td.z);
     put(S, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.1, 10), mat(0xffffff)), td.x + 0.6, td.h + 0.075, td.z + 0.1);
     put(S, box(0.3, 0.05, 0.22, 0x355c9a), td.x - 0.55, td.h + 0.05, td.z + 0.08);
-    const ch = new THREE.Group();
-    put(ch, box(0.5, 0.07, 0.48, 0x2c3440), 0, 0.5, 0);
-    put(ch, box(0.5, 0.55, 0.07, 0x2c3440), 0, 0.85, -0.24);
-    put(ch, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.45, 8), mat(0x666666)), 0, 0.25, 0);
-    put(ch, box(0.5, 0.04, 0.06, 0x444444), 0, 0.03, 0);
-    put(ch, box(0.06, 0.04, 0.5, 0x444444), 0, 0.03, 0);
-    put(S, ch, P.chair.x, 0, P.chair.z);
+    this.chairStatic = put(S, makeChair(), P.chair.x, 0, P.chair.z);
     this.trap = { cushion: makeItem('cushion'), glue: box(0.3, 0.012, 0.28, 0xfff7c2, { transparent: true, opacity: 0.8 }) };
     put(S, this.trap.cushion, P.chair.x, 0.54, P.chair.z + 0.02);
     put(S, this.trap.glue, P.chair.x, 0.545, P.chair.z + 0.02);
@@ -838,6 +870,14 @@ export class World {
 
   buildTaba() {
     this.taba = makeHuman({ ...TABA_LOOK, sleeve: TABA_LOOK.shirt, hand: true });
+    this.tabaChair = put(this.taba.userData.body, makeChair(), 0, 0.3, -0.12);
+    this.tabaChair.visible = false;
+    this.skinCol = new THREE.Color(TABA_LOOK.skin);
+    this.redCol = new THREE.Color(0xd42a1e);
+    this.greenCol = new THREE.Color(0x8fbf5a);
+    this.steamT = 0;
+    this.npcs = []; this.npcKey = ''; this.npcMood = null; this.npcMoodT = 0;
+    this.shakeA = 0;
     this.scene.add(this.taba);
     this.tabaYaw = 0;
     this.coneMat = new THREE.MeshBasicMaterial({ color: 0x35d07f, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
@@ -933,17 +973,50 @@ export class World {
       g.fillText('MIAÚ MIAÚ MIAÚ', 192, 40);
       g.font = 'bold 20px sans-serif'; g.fillText('▶ Vicces cicák 10 órán át', 192, 240);
     } else if (st === 'hack') {
-      const f = Math.floor(t * 6);
-      g.fillStyle = `hsl(${(f * 40) % 360},85%,62%)`; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 6; g.textAlign = 'center';
-      g.font = 'bold 22px Impact, sans-serif';
-      g.strokeText('AMIKOR TÖRIÓRA VAN', w / 2, 46); g.fillText('AMIKOR TÖRIÓRA VAN', w / 2, 46);
-      g.strokeText('DE TE MÁR A SZÜNETRE GONDOLSZ', w / 2, 238); g.fillText('DE TE MÁR A SZÜNETRE GONDOLSZ', w / 2, 238);
-      const b = Math.sin(t * 10) * 10;
-      g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(w / 2, 136 + b, 52, 0, 7); g.fill();
-      g.fillStyle = '#222'; g.beginPath(); g.arc(w / 2 - 18, 124 + b, 7, 0, 7); g.arc(w / 2 + 18, 124 + b, 7, 0, 7); g.fill();
-      g.strokeStyle = '#222'; g.lineWidth = 5; g.beginPath(); g.arc(w / 2, 140 + b, 26, 0.15, PI - 0.15); g.stroke();
-      g.font = '40px sans-serif'; g.fillText('😂', 60, 150 - b); g.fillText('🔥', w - 60, 150 + b);
+      // „mémes pendrive”: száraz humorú diák, felváltva
+      const slide = Math.floor(t / 3.5) % 2;
+      g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, w, h);
+      g.textAlign = 'center'; g.fillStyle = '#fff';
+      g.font = 'bold 15px Impact, Arial Black, sans-serif';
+      if (slide === 0) {
+        g.fillText('A FEUDÁLIS TÁRSADALOM (VALÓJÁBAN)', w / 2, 24);
+        const lv = ['KIRÁLY', 'HŰBÉRURAK', 'VAZALLUSOK', 'JOBBÁGYOK', 'MI, PÉNTEK HETEDIK ÓRÁBAN'];
+        const cols = ['#f5c518', '#d97706', '#b45309', '#7c2d12', '#991b1b'];
+        lv.forEach((txt, k) => {
+          const y0 = 36 + k * 42, y1 = y0 + 40;
+          const half = (yy) => 18 + (yy - 36) * 0.78;
+          g.fillStyle = cols[k];
+          g.beginPath(); g.moveTo(w / 2 - half(y0), y0); g.lineTo(w / 2 + half(y0), y0); g.lineTo(w / 2 + half(y1), y1); g.lineTo(w / 2 - half(y1), y1); g.fill();
+          g.fillStyle = '#fff'; g.font = `bold ${k === 4 ? 13 : 11}px Arial, sans-serif`;
+          g.fillText(txt, w / 2, y0 + 25);
+        });
+      } else {
+        g.fillText('A HŰBÉRI LÁNC, 2026', w / 2, 30);
+        const chain = ['Igazgató', 'Taba', 'Laptop', 'Windows-frissítés', 'Mi'];
+        g.font = 'bold 14px Arial, sans-serif';
+        chain.forEach((txt, k) => {
+          const y = 58 + k * 40;
+          g.fillStyle = k === 4 ? '#991b1b' : '#1f2937';
+          g.fillRect(w / 2 - 95, y, 190, 28);
+          g.fillStyle = '#fff'; g.fillText(txt, w / 2, y + 19);
+          if (k < 4) { g.fillStyle = '#9ca3af'; g.fillText('↓', w / 2, y + 38); }
+        });
+      }
+    } else if (st === 'update') {
+      g.fillStyle = '#0063b1'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#fff'; g.textAlign = 'center';
+      g.strokeStyle = '#fff'; g.lineWidth = 3;
+      for (let k = 0; k < 6; k++) {
+        const a = t * 4 + k * 0.5;
+        g.globalAlpha = 1 - k * 0.15;
+        g.beginPath(); g.arc(w / 2 + Math.cos(a) * 16, 82 + Math.sin(a) * 16, 2.5, 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
+      g.font = '15px Segoe UI, Arial, sans-serif';
+      g.fillText(`Frissítések telepítése: ${this.updPct ?? 0}%`, w / 2, 136);
+      g.fillText('Ne kapcsolja ki a számítógépet.', w / 2, 160);
+      g.font = '11px Segoe UI, Arial, sans-serif';
+      g.fillText('Ez eltarthat egy ideig. Mint a középkor.', w / 2, 186);
     } else if (st === 'nosignal') {
       g.fillStyle = '#1e3a8a'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#fff'; g.font = 'bold 26px sans-serif'; g.textAlign = 'center';
@@ -976,7 +1049,7 @@ export class World {
       this.cone.geometry = geo;
     }
     this.coneRange += (range - this.coneRange) * 0.25;
-    this.cone.visible = this.coneRange > 0.15;
+    this.cone.visible = this.coneRange > 0.15 && this.taba.visible;
     this.cone.scale.setScalar(Math.max(0.01, this.coneRange));
   }
 
@@ -1039,12 +1112,13 @@ export class World {
       this.plant.rotation.z += ((s.plant ? 0 : 1.45) - this.plant.rotation.z) * k;
 
       const ps = projState(s);
-      this.beam.visible = ps === 'on' || ps === 'drawing' || ps === 'hack' || ps === 'nosignal';
+      this.beam.visible = ps === 'on' || ps === 'drawing' || ps === 'hack' || ps === 'nosignal' || ps === 'update';
       this.drawId = s.drawId;
+      this.updPct = s.winUpdate;
       this.torn = !!s.screenTorn;
       this.projector.rotation.z = s.proj === 'broken' ? 0.5 : 0;
       this.projector.rotation.x = s.proj === 'broken' ? 0.3 : 0;
-      const sk = ps + (ps === 'hack' ? Math.floor(t * 12) : ps === 'on' ? Math.floor(t / 9) : ps === 'drawing' ? s.drawId + '/' + this.drawings.has(s.drawId) : '') + this.torn;
+      const sk = ps + (ps === 'hack' ? Math.floor(t * 12) : ps === 'on' ? Math.floor(t / 9) : ps === 'drawing' ? s.drawId + '/' + this.drawings.has(s.drawId) : ps === 'update' ? s.winUpdate + '|' + Math.floor(t * 6) : '') + this.torn;
       if (sk !== this.keys.screen) { this.keys.screen = sk; this.drawScreen(ps, t); }
       const bk = Math.round(s.board * 6) + '|' + s.doodle;
       if (bk !== this.keys.board) { this.keys.board = bk; this.drawBoard(s); }
@@ -1092,7 +1166,7 @@ export class World {
           u.ring.scale.setScalar(1 + Math.sin(t * 4 + it.id) * 0.12);
           u.model.position.y = it.type === 'laptop' || it.placed ? 0 : 0.03 + Math.sin(t * 2.5 + it.id) * 0.02;
           m.rotation.y = it.type === 'laptop' ? 0 : it.ringing ? Math.sin(t * 40) * 0.25 : it.id * 1.7;
-          if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : s.drawOn ? 0xffffff : s.usb ? 0xff4fd8 : 0x7fc8ff);
+          if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : s.winUpdate != null ? 0x0063b1 : s.drawOn ? 0xffffff : s.usb ? 0xff4fd8 : 0x7fc8ff);
         }
       }
       for (const [id, m] of this.itemMeshes) if (!s.items[id]) { this.scene.remove(m); this.itemMeshes.delete(id); }
@@ -1109,6 +1183,26 @@ export class World {
     this.tabaYaw = lerpAngle(this.tabaYaw, T.yaw, 1 - Math.exp(-dt * 16));
     tg.rotation.y = this.tabaYaw;
     poseHuman(tg, T.st, t, T.sit, T.count || 0);
+    tg.visible = !T.hidden;
+    const glued = (T.chair || 0) > 0 && s.phase === 'play';
+    this.tabaChair.visible = glued;
+    this.chairStatic.visible = !glued;
+    const hm = tg.userData.headMat;
+    hm.color.copy(this.skinCol).lerp(this.redCol, Math.min(0.85, Math.max(0, ((T.stress || 0) - 0.25) / 0.6)));
+    if ((T.green || 0) > 0) hm.color.lerp(this.greenCol, Math.min(1, T.green / 3));
+    if ((T.stress || 0) > 0.7 && !T.hidden && s.phase === 'play') {
+      this.steamT -= dt;
+      if (this.steamT <= 0) {
+        this.steamT = 0.3;
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const sx = tg.position.x + Math.cos(this.tabaYaw) * 0.18 * side, sz = tg.position.z - Math.sin(this.tabaYaw) * 0.18 * side;
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthWrite: false }));
+        const y0 = (T.sit ? 1.35 : 1.7);
+        m.position.set(sx, y0, sz);
+        this.scene.add(m);
+        this.fx.push({ obj: m, t: 0, dur: 0.9, step: (u) => { m.position.y = y0 + u * 0.6; m.scale.setScalar(1 + u * 2.5); m.material.opacity = 0.7 * (1 - u); } });
+      }
+    }
     this.cone.position.x = tg.position.x; this.cone.position.z = tg.position.z;
     this.cone.rotation.y = this.tabaYaw;
     this.setCone(T.fov, s.phase === 'play' ? T.range : 0);
@@ -1132,6 +1226,7 @@ export class World {
       poseHuman(a, p.dragged ? 'dragged' : u.sp > 0.3 ? 'walk' : p.act ? 'fix' : '', t, false);
     }
     if (this.preview) { this.preview.rotation.y = t * 0.7; poseHuman(this.preview, 'lecture', t, false); }
+    this.updateNpcs(s, dt, t);
 
     // ajtó: kinyílik, ha valaki a közelében van
     let near = Math.hypot(tg.position.x - DOOR.x, tg.position.z - DOOR.z) < 1.7;
@@ -1142,8 +1237,10 @@ export class World {
     for (const [id, a] of this.avatars) if (!s.players[id] || id === meId) { this.scene.remove(a); this.avatars.delete(id); }
 
     // kamera
+    this.shakeA *= Math.exp(-dt * 6);
     if (me) {
-      this.camera.position.set(me.x, EYE + (me.bob || 0), me.z);
+      const sh = this.shakeA * 0.07;
+      this.camera.position.set(me.x + (Math.random() - 0.5) * sh, EYE + (me.bob || 0) + (Math.random() - 0.5) * sh, me.z + (Math.random() - 0.5) * sh);
       this.camera.rotation.set(me.pitch, me.yaw + PI, 0);
     }
     // zoom (lebukáskor ráközelítünk Taba kezére)
@@ -1213,6 +1310,48 @@ export class World {
   }
 
   kick() { this.vmKick = 1; }
+  shake(a) { this.shakeA = Math.max(this.shakeA, a); }
+
+  // osztálytársak az üres helyeken: saját kis életük van, és reagálnak a szívatásokra
+  npcReact(mood, dur) {
+    const rank = { laugh: 1, duck: 2, gasp: 3 };
+    if (this.npcMoodT > 0 && (rank[this.npcMood] || 0) > (rank[mood] || 0)) return;
+    this.npcMood = mood; this.npcMoodT = dur; this.npcDur = dur;
+  }
+  updateNpcs(s, dt, t) {
+    const taken = new Set(Object.values(s.players || {}).map((p) => p.seat % SEATS.length));
+    const key = [...taken].sort().join(',');
+    if (key !== this.npcKey) {
+      this.npcKey = key;
+      for (const n of this.npcs) this.scene.remove(n);
+      this.npcs = [];
+      SEATS.forEach((st, i) => {
+        if (taken.has(i)) return;
+        const h = makeHuman(NPC_LOOKS[i % NPC_LOOKS.length]);
+        h.scale.setScalar(0.88);
+        h.position.set(st.x, 0, st.z - 0.27);
+        h.rotation.y = PI;
+        h.userData.idle = NPC_IDLE[i % NPC_IDLE.length];
+        h.userData.seed = i * 1.37;
+        h.userData.delay = (i % 4) * 0.12;
+        this.scene.add(h);
+        this.npcs.push(h);
+      });
+    }
+    if (this.npcMoodT > 0) this.npcMoodT -= dt;
+    const tp = this.taba.position;
+    for (const h of this.npcs) {
+      const u = h.userData;
+      const reacting = this.npcMoodT > 0 && this.npcMoodT < (this.npcDur || 9) - u.delay;
+      poseHuman(h, reacting ? this.npcMood : u.idle, t + u.seed, true);
+      if ((reacting && this.npcMood !== 'duck') || u.idle === 'npcLook') {
+        // Taba felé fordítják a fejüket
+        let a = Math.atan2(tp.x - h.position.x, tp.z - h.position.z) - h.rotation.y;
+        a = Math.atan2(Math.sin(a), Math.cos(a));
+        if (reacting || this.taba.visible) u.head.rotation.y = Math.max(-1.1, Math.min(1.1, a));
+      }
+    }
+  }
 
   // világ -> képernyő (feliratokhoz)
   project(x, y, z) {

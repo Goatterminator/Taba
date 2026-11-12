@@ -71,16 +71,16 @@ export const PLAYER_COLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6, 
 
 // ---- skinek (a boltban vehetők) ---------------------------------------------
 export const SKINS = [
-  { id: 'alap', name: 'Alap', price: 0, icon: '🙂' },
-  { id: 'sport', name: 'Sportoló', price: 30, icon: '⚽', shirt: 0xffffff, pants: 0x1d4ed8, hair: 0x7a4a22, hat: 'band', hatC: 0xe11d48 },
-  { id: 'rapper', name: 'Rapper', price: 75, icon: '🎤', shirt: 0x151515, pants: 0x2b2b2b, hair: 0x111111, hat: 'cap', hatC: 0xf5c518, acc: 'chain' },
-  { id: 'gamer', name: 'Gamer', price: 120, icon: '🎧', shirt: 0x22c55e, pants: 0x111827, hair: 0x3b2a1a, hat: 'phones', hatC: 0x1f2937 },
-  { id: 'kaloz', name: 'Kalóz', price: 180, icon: '🏴‍☠️', shirt: 0xf5f0e6, vest: 0x7f1d1d, pants: 0x3b2a1a, hair: 0x111111, hat: 'pirate', hatC: 0x111111, acc: 'patch' },
-  { id: 'buli', name: 'Szilveszteri', price: 220, icon: '🎩', shirt: 0x1f2937, pants: 0x111827, hair: 0x2b211b, hat: 'tophat', hatC: 0xdc2626, acc: 'streamer' },
-  { id: 'robot', name: 'Robot', price: 260, icon: '🤖', shirt: 0x9ca3af, pants: 0x6b7280, skin: 0xc9d1dc, hair: 0x9ca3af, hat: 'antenna', hatC: 0xef4444 },
-  { id: 'dino', name: 'Dínó', price: 380, icon: '🦖', shirt: 0x4ade80, pants: 0x16a34a, hair: 0x22c55e, hat: 'dino', hatC: 0x16a34a },
-  { id: 'kiraly', name: 'Király', price: 550, icon: '👑', shirt: 0x7c3aed, pants: 0xf5f5f5, hair: 0xc79a3a, hat: 'crown', hatC: 0xf5c518, acc: 'cape' },
-  { id: 'arany', name: 'Arany legenda', price: 900, icon: '🏆', shirt: 0xf5c518, pants: 0xd4a017, skin: 0xffd76a, hair: 0xf5c518, hat: 'crown', hatC: 0xfff1a8, acc: 'chain' },
+  { id: 'alap', name: 'Alap', price: 0 },
+  { id: 'sport', name: 'Sportoló', price: 30, shirt: 0xffffff, pants: 0x1d4ed8, hair: 0x7a4a22, hat: 'band', hatC: 0xe11d48 },
+  { id: 'rapper', name: 'Rapper', price: 75, shirt: 0x151515, pants: 0x2b2b2b, hair: 0x111111, hat: 'cap', hatC: 0xf5c518, acc: 'chain' },
+  { id: 'gamer', name: 'Gamer', price: 120, shirt: 0x22c55e, pants: 0x111827, hair: 0x3b2a1a, hat: 'phones', hatC: 0x1f2937 },
+  { id: 'kaloz', name: 'Kalóz', price: 180, shirt: 0xf5f0e6, vest: 0x7f1d1d, pants: 0x3b2a1a, hair: 0x111111, hat: 'pirate', hatC: 0x111111, acc: 'patch' },
+  { id: 'buli', name: 'Szilveszteri', price: 220, shirt: 0x1f2937, pants: 0x111827, hair: 0x2b211b, hat: 'tophat', hatC: 0xdc2626, acc: 'streamer' },
+  { id: 'robot', name: 'Robot', price: 260, shirt: 0x9ca3af, pants: 0x6b7280, skin: 0xc9d1dc, hair: 0x9ca3af, hat: 'antenna', hatC: 0xef4444 },
+  { id: 'dino', name: 'Dínó', price: 380, shirt: 0x4ade80, pants: 0x16a34a, hair: 0x22c55e, hat: 'dino', hatC: 0x16a34a },
+  { id: 'kiraly', name: 'Király', price: 550, shirt: 0x7c3aed, pants: 0xf5f5f5, hair: 0xc79a3a, hat: 'crown', hatC: 0xf5c518, acc: 'cape' },
+  { id: 'arany', name: 'Arany legenda', price: 900, shirt: 0xf5c518, pants: 0xd4a017, skin: 0xffd76a, hair: 0xf5c518, hat: 'crown', hatC: 0xfff1a8, acc: 'chain' },
 ];
 export const skinById = (id) => SKINS.find((s) => s.id === id) || SKINS[0];
 
@@ -157,18 +157,18 @@ NAV.push({ x: 4.45, z: DOOR.z }, { x: 5.6, z: DOOR.z }, { x: P.wcCenter.x, z: P.
 
 // ---- tárgyak ----------------------------------------------------------------
 export const ITEMS = {
-  laptop: { name: 'Taba laptopja', icon: '💻', hint: 'Rejtsd el: kuka, szekrény, vagy ki az ablakon!', contraband: true },
-  ak: { name: 'Szivacslövő AK', icon: '🔫', hint: 'Lődd szét a projektort, vásznat, laptopot – de Tabát NE!', contraband: true, use: 'LŐ' },
-  megaphone: { name: 'Megafon', icon: '📢', hint: 'Óriási zaj – Taba kiborul és ordibálni kezd', contraband: true, use: 'ZAJ' },
-  usb: { name: 'Mémes pendrive', icon: '💾', hint: 'Dugd Taba laptopjába – a vásznon mémek jönnek a PPT helyett' },
-  chalk: { name: 'Kréta', icon: '🖍️', hint: 'Firkálj vele a táblára' },
-  cushion: { name: 'Pukipárna', icon: '🎈', hint: 'Tedd Taba székére' },
-  glue: { name: 'Pillanatragasztó', icon: '🧴', hint: 'Kend Taba székére' },
-  snake: { name: 'Gumikígyó', icon: '🐍', hint: 'Tedd Taba asztalára, a laptop mellé' },
-  banana: { name: 'Banánhéj', icon: '🍌', hint: 'Tedd le oda, ahol Taba járkál', use: 'LETESZ' },
-  stink: { name: 'Bűzbomba', icon: '🧪', hint: 'Dobd Taba közelébe', use: 'DOB' },
-  phone: { name: 'Csörgő telefon', icon: '📱', hint: 'Tedd le valahol – elcsalja Tabát', use: 'LETESZ' },
-  plane: { name: 'Papírrepülő', icon: '✈️', hint: 'Dobd meg vele Tabát', use: 'DOB' },
+  laptop: { name: 'Taba laptopja', hint: 'Rejtsd el: kuka, szekrény, vagy ki az ablakon!', contraband: true },
+  ak: { name: 'Szivacslövő AK', hint: 'Lődd szét a projektort, vásznat, laptopot – de Tabát NE!', contraband: true, use: 'LŐ' },
+  megaphone: { name: 'Megafon', hint: 'Óriási zaj – Taba kiborul és ordibálni kezd', contraband: true, use: 'ZAJ' },
+  usb: { name: 'Mémes pendrive', hint: 'Dugd Taba laptopjába – a vásznon mémek jönnek a PPT helyett' },
+  chalk: { name: 'Kréta', hint: 'Firkálj vele a táblára' },
+  cushion: { name: 'Pukipárna', hint: 'Tedd Taba székére' },
+  glue: { name: 'Pillanatragasztó', hint: 'Kend Taba székére' },
+  snake: { name: 'Gumikígyó', hint: 'Tedd Taba asztalára, a laptop mellé' },
+  banana: { name: 'Banánhéj', hint: 'Tedd le oda, ahol Taba járkál', use: 'LETESZ' },
+  stink: { name: 'Bűzbomba', hint: 'Dobd Taba közelébe', use: 'DOB' },
+  phone: { name: 'Csörgő telefon', hint: 'Tedd le valahol – elcsalja Tabát', use: 'LETESZ' },
+  plane: { name: 'Papírrepülő', hint: 'Dobd meg vele Tabát', use: 'DOB' },
 };
 
 function shuffle(a) {
@@ -223,6 +223,7 @@ export function projState(s) {
   if (s.proj === 'broken') return 'broken';
   if (!s.power || !s.plug) return 'off';
   if (s.laptop !== 'desk' || s.lapBroken || !s.hdmi) return 'nosignal';
+  if (s.winUpdate != null) return 'update';
   if (s.drawOn) return 'drawing';
   if (s.usb) return 'hack';
   return 'on';
