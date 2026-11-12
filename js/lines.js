@@ -129,8 +129,6 @@ export const LINES = {
   paLeave: ['Mindenki marad a helyén. Látok mindent. Akkor is, ha nem vagyok itt.', 'Két perc, és jövök. Aki addig rosszalkodik, megtudom. Mindig megtudom.'],
   paBack: ['Itt vagyok. Mi változott? Semmi? Gyanús.', 'Visszajöttem. Valami más. Nem tudom, mi, de más.'],
 
-  endWin: ['Feladom. Mától kertészkedem.', 'Ez nem óra volt, hanem ostrom. És én voltam a vár.', 'Kérek egy szabadnapot. Vagy egy szabadévet.'],
-  endLose: ['Na. Mégiscsak volt óra. Házi feladat: minden.', 'Kicsengettek. Ma is győzött a tananyag.', 'Jövő héten dolgozat. Erről. Mindenről.'],
 };
 
 const recent = new Map();

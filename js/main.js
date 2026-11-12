@@ -236,12 +236,6 @@ function enterEnd() {
 // beírás az osztálynaplóba: mi történt az órán, és ki mivel tűnt ki
 function renderReport() {
   const s = view, st = s.stats || {};
-  const verdict = {
-    won: '„Az osztály a feudalizmus helyett az anarchiát választotta. Az óra nem volt megtartható.”',
-    strikes: '„Három figyelmeztetés után az óra az igazgatói irodában folytatódott.”',
-    hit: '„A tanárt szivacslövedék érte. A fegyelmi eljárás folyamatban.”',
-    time: '„Az óra megtartva. A tanulók magatartása: változó.”',
-  }[s.endKind] || '';
   const L = [];
   const add = (cond, txt) => { if (cond) L.push(txt); };
   add(st.slips, `Taba ${st.slips}× tesztelte a gravitációt egy banánhéjon.`);
@@ -273,7 +267,6 @@ function renderReport() {
   const box = $('endLog');
   box.textContent = '';
   const h = document.createElement('h3'); h.textContent = 'Beírás az osztálynaplóba'; box.appendChild(h);
-  const v = document.createElement('p'); v.className = 'verdict'; v.textContent = verdict; box.appendChild(v);
   const ul = document.createElement('ul');
   for (const t of L.slice(0, 6)) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }
   box.appendChild(ul);
@@ -287,7 +280,6 @@ function renderReport() {
     }
     box.appendChild(tl);
   }
-  if (s.final) { const q = document.createElement('p'); q.className = 'final'; q.textContent = `Taba utolsó szavai: „${s.final}”`; box.appendChild(q); }
 }
 
 let comboTimer = 0;

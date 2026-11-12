@@ -172,7 +172,6 @@ export class Sim {
     this.s.phase = phase;
     this.s.reason = reason;
     this.s.endKind = kind;
-    this.s.final = line(phase === 'won' ? 'endWin' : 'endLose');
     for (const p of Object.values(this.s.players)) { p.act = null; p.dragged = false; }
     this.emit({ e: 'end', phase });
   }
