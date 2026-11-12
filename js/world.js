@@ -80,6 +80,20 @@ function addHat(head, body, o) {
       put(head, box(0.07, 0.07, 0.01, 0xffffff), 0, 0.22, 0.145);
       break;
     }
+    case 'hood': {
+      const hd = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10, 0, PI * 2, 0, PI * 0.62), mat(c));
+      hd.rotation.x = -1.2;
+      put(head, hd, 0, -0.06, -0.08);
+      break;
+    }
+    case 'beanie': {
+      const bn = new THREE.Mesh(new THREE.SphereGeometry(0.225, 14, 10, 0, PI * 2, 0, PI * 0.5), mat(c));
+      put(head, bn, 0, 0.04, -0.01);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.03, 6, 20), mat(c));
+      rim.rotation.x = PI / 2;
+      put(head, rim, 0, 0.05, 0);
+      break;
+    }
     case 'tophat': {
       const gl = { emissive: 0x3a0000 };
       put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 18), mat(c, gl)), 0, 0.15, 0);
@@ -157,6 +171,16 @@ export function makeHuman(o) {
   put(body, shirtBox(0.52, 0.62, 0.3, o.shirt), 0, 1.13, 0);
   if (o.pattern === 'plaid') put(body, box(0.2, 0.06, 0.04, 0x1a1a1a), 0, 1.42, 0.14); // gallér
   if (o.vest) put(body, box(0.54, 0.5, 0.32, o.vest), 0, 1.1, 0);
+  if (o.acc === 'stripes') {
+    for (const sd of [-1, 1]) {
+      put(arms[sd < 0 ? 0 : 1], box(0.03, 0.56, 0.15, 0xf5f5f5), sd * 0.055, -0.27, 0);
+      put(legs[sd < 0 ? 0 : 1], box(0.03, 0.78, 0.2, 0xf5f5f5), sd * 0.075, -0.4, 0);
+    }
+  }
+  if (o.acc === 'collar') {
+    put(body, box(0.42, 0.08, 0.1, o.shirt), 0, 1.42, 0.1);
+    put(body, box(0.04, 0.5, 0.31, 0x0b0b0b), 0, 1.12, 0.005);
+  }
   if (o.acc === 'streamer') {
     for (const [x, y, c, r] of [[-0.12, 1.3, 0xdc2626, 0.4], [0.1, 1.15, 0x16a34a, -0.5], [0.0, 1.0, 0xf4f4f4, 0.2]]) {
       const m = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 4, 20), mat(c));
@@ -197,6 +221,9 @@ export function makeHuman(o) {
     put(head, box(0.035, 0.13, 0.18, o.hair), -0.185, -0.07, 0.03);
     put(head, box(0.035, 0.13, 0.18, o.hair), 0.185, -0.07, 0.03);
     mouth.position.z = 0.212;
+  }
+  if (o.acc === 'shades') {
+    put(head, box(0.3, 0.06, 0.03, 0x0b0b0b), 0, 0.03, 0.2);
   }
   if (o.acc === 'patch') {
     put(head, box(0.07, 0.065, 0.02, 0x111111), -0.075, 0.02, 0.2);
@@ -259,6 +286,8 @@ function poseHuman(h, mode, t, sit, count = 0) {
     case 'npcLook': hy = Math.sin(t * 0.6) * 0.9; aa = [-0.9, -0.9]; break;
     case 'laugh': by = Math.abs(Math.sin(t * 15)) * 0.035; bx = -0.12; hx = -0.35 + Math.sin(t * 15) * 0.08; aa = [-0.6, -0.6]; az = [0.25, -0.25]; mo = 3; break;
     case 'gasp': aa = [-2.75, -2.75]; az = [0.4, -0.4]; mo = 3.5; break;
+    case 'watch': aa = [-0.9, -0.9]; break;
+    case 'raise': aa = [-0.9, 0]; az = [0, 2.95]; by = Math.abs(Math.sin(t * 7)) * 0.03; break;
     case 'duck': bx = 0.45; aa = [-2.9, -2.9]; az = [0.3, -0.3]; hx = 0.6; break;
   }
   if (sit) { ly = -0.3; la = [-PI / 2, -PI / 2]; }
@@ -367,15 +396,16 @@ export function makeItem(type) {
       break;
     }
     case 'ak': {
-      // játékfegyver: narancs–kék szivacslövő
-      put(g, box(0.07, 0.1, 0.46, 0xff7a1a), 0, 0.06, 0);
-      put(g, box(0.05, 0.05, 0.3, 0x2a6fdb), 0, 0.075, 0.36);
-      put(g, box(0.06, 0.06, 0.05, 0xffd21a), 0, 0.075, 0.53);
-      put(g, box(0.06, 0.12, 0.26, 0x2a6fdb), 0, 0.04, -0.34);
-      const mag = put(g, box(0.055, 0.2, 0.09, 0x2a6fdb), 0, -0.07, 0.08);
-      mag.rotation.x = 0.3;
-      put(g, box(0.05, 0.12, 0.06, 0xff7a1a), 0, -0.04, -0.12);
-      put(g, box(0.02, 0.04, 0.02, 0x222222), 0, 0.13, 0.42);
+      // airsoft replika: sötét test, fa markolat, narancs csőtorkolat
+      put(g, box(0.065, 0.09, 0.42, 0x1f2124), 0, 0.06, 0);
+      put(g, box(0.07, 0.07, 0.2, 0x6b4423), 0, 0.055, 0.25);
+      put(g, box(0.025, 0.025, 0.24, 0x2a2c30), 0, 0.075, 0.44);
+      put(g, box(0.034, 0.034, 0.04, 0xff7a1a), 0, 0.075, 0.57);
+      put(g, box(0.06, 0.1, 0.28, 0x6b4423), 0, 0.035, -0.33);
+      const mag = put(g, box(0.05, 0.2, 0.07, 0x1f2124), 0, -0.07, 0.07);
+      mag.rotation.x = 0.4;
+      put(g, box(0.045, 0.11, 0.05, 0x3a2615), 0, -0.04, -0.12);
+      put(g, box(0.015, 0.04, 0.015, 0x111111), 0, 0.13, 0.5);
       break;
     }
     case 'remote':
@@ -408,6 +438,20 @@ export function makeItem(type) {
       const s = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.14), new THREE.MeshBasicMaterial({ color: 0x3ddc84 }));
       s.rotation.x = -PI / 2;
       put(g, s, 0, 0.017, 0);
+      break;
+    }
+    case 'tack':
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 12), mat(0xc0c4c9)), 0, 0.015, 0);
+      put(g, new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.03, 6), mat(0x9ca3af)), 0, 0.035, 0);
+      break;
+    case 'water': {
+      const bottle = put(g, new THREE.Group(), 0, 0, 0);
+      put(bottle, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.2, 12), mat(0xbfe3f5, { transparent: true, opacity: 0.75 })), 0, 0.1, 0);
+      put(bottle, new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 10), mat(0x2563eb)), 0, 0.215, 0);
+      const pud = new THREE.Mesh(new THREE.CircleGeometry(0.45, 20), new THREE.MeshBasicMaterial({ color: 0x9ccfe8, transparent: true, opacity: 0.45, depthWrite: false }));
+      pud.rotation.x = -PI / 2; pud.scale.set(1, 0.7, 1); pud.visible = false;
+      put(g, pud, 0, 0.004, 0);
+      g.userData.bottle = bottle; g.userData.puddle = pud;
       break;
     }
     case 'megaphone': {
@@ -709,11 +753,13 @@ export class World {
     put(S, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.1, 10), mat(0xffffff)), td.x + 0.6, td.h + 0.075, td.z + 0.1);
     put(S, box(0.3, 0.05, 0.22, 0x355c9a), td.x - 0.55, td.h + 0.05, td.z + 0.08);
     this.chairStatic = put(S, makeChair(), P.chair.x, 0, P.chair.z);
-    this.trap = { cushion: makeItem('cushion'), glue: box(0.3, 0.012, 0.28, 0xfff7c2, { transparent: true, opacity: 0.8 }) };
-    put(S, this.trap.cushion, P.chair.x, 0.54, P.chair.z + 0.02);
+    this.trap = { tack: makeItem('tack'), glue: box(0.3, 0.012, 0.28, 0xfff7c2, { transparent: true, opacity: 0.8 }) };
+    put(S, this.trap.tack, P.chair.x + 0.05, 0.535, P.chair.z + 0.05);
     put(S, this.trap.glue, P.chair.x, 0.545, P.chair.z + 0.02);
-    this.trap.snake = put(S, makeItem('snake'), P.snake.x, P.snake.y - 0.01, P.snake.z);
-    this.trap.snake.rotation.y = 2.2;
+    // tűzjelző a falon az ajtó mellett
+    put(S, box(0.06, 0.2, 0.2, 0xb91c1c), ROOM.x1 - 0.03, P.alarm.y, P.alarm.z);
+    put(S, box(0.02, 0.08, 0.1, 0xf5f5f4), ROOM.x1 - 0.065, P.alarm.y + 0.02, P.alarm.z);
+    this.alarmLight = put(S, new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x551111 })), ROOM.x1 - 0.06, 2.55, P.alarm.z);
     this.usbStick = put(S, makeItem('usb'), P.laptop.x + 0.2, P.laptop.y + 0.005, P.laptop.z + 0.02);
     this.usbStick.rotation.y = PI / 2;
     this.hdmi = put(S, new THREE.Group(), P.laptop.x - 0.19, P.laptop.y + 0.01, P.laptop.z);
@@ -870,8 +916,6 @@ export class World {
 
   buildTaba() {
     this.taba = makeHuman({ ...TABA_LOOK, sleeve: TABA_LOOK.shirt, hand: true });
-    this.tabaChair = put(this.taba.userData.body, makeChair(), 0, 0.3, -0.12);
-    this.tabaChair.visible = false;
     this.skinCol = new THREE.Color(TABA_LOOK.skin);
     this.redCol = new THREE.Color(0xd42a1e);
     this.greenCol = new THREE.Color(0x8fbf5a);
@@ -1088,6 +1132,7 @@ export class World {
     this.bright += ((dark ? 0.06 : 1) - this.bright) * (1 - Math.exp(-dt * 8));
     const b = this.bright;
     this.hemi.intensity = 0.1 + 1.45 * b;
+    this.hemi.color.setRGB(1, 1 - 0.45 * (this.alarmTint || 0), 1 - 0.45 * (this.alarmTint || 0));
     this.sun.intensity = 0.06 + 1.25 * b;
     this.lampMat.color.setScalar(0.2 + 0.8 * b);
     this.skyMat.color.setScalar(0.55 + 0.45 * b);
@@ -1100,9 +1145,11 @@ export class World {
       this.sash.rotation.y += ((s.win ? 0.9 : 0) - this.sash.rotation.y) * k;
       this.cracks[0].visible = !s.glass[0]; this.cracks[1].visible = !s.glass[1];
       s.lockers.forEach((o, i) => { const d = this.lockerDoors[i]; d.rotation.y += ((o ? 1.9 : 0) - d.rotation.y) * k; });
-      this.trap.cushion.visible = s.chairTrap === 'cushion';
+      this.trap.tack.visible = s.chairTrap === 'tack';
       this.trap.glue.visible = s.chairTrap === 'glue';
-      this.trap.snake.visible = s.deskTrap === 'snake';
+      const ringing = (s.alarm || 0) > 0;
+      this.alarmLight.material.color.setHex(ringing && Math.floor(t * 4) % 2 ? 0xff2222 : 0x551111);
+      this.alarmTint = ringing ? 0.5 + 0.5 * Math.sin(t * 12) : 0;
       this.usbStick.visible = !!s.usb && s.laptop === 'desk';
       this.hdmi.position.set(P.laptop.x - (s.hdmi ? 0.19 : 0.3), s.hdmi ? P.laptop.y + 0.01 : 0.3, P.laptop.z);
       this.hdmi.rotation.x = s.hdmi ? 0 : -1.2;
@@ -1166,6 +1213,7 @@ export class World {
           u.ring.scale.setScalar(1 + Math.sin(t * 4 + it.id) * 0.12);
           u.model.position.y = it.type === 'laptop' || it.placed ? 0 : 0.03 + Math.sin(t * 2.5 + it.id) * 0.02;
           m.rotation.y = it.type === 'laptop' ? 0 : it.ringing ? Math.sin(t * 40) * 0.25 : it.id * 1.7;
+          if (it.type === 'water') { u.model.userData.puddle.visible = !!it.placed; u.model.userData.bottle.visible = !it.placed; }
           if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : s.winUpdate != null ? 0x0063b1 : s.drawOn ? 0xffffff : s.usb ? 0xff4fd8 : 0x7fc8ff);
         }
       }
@@ -1184,25 +1232,8 @@ export class World {
     tg.rotation.y = this.tabaYaw;
     poseHuman(tg, T.st, t, T.sit, T.count || 0);
     tg.visible = !T.hidden;
-    const glued = (T.chair || 0) > 0 && s.phase === 'play';
-    this.tabaChair.visible = glued;
-    this.chairStatic.visible = !glued;
     const hm = tg.userData.headMat;
-    hm.color.copy(this.skinCol).lerp(this.redCol, Math.min(0.85, Math.max(0, ((T.stress || 0) - 0.25) / 0.6)));
-    if ((T.green || 0) > 0) hm.color.lerp(this.greenCol, Math.min(1, T.green / 3));
-    if ((T.stress || 0) > 0.7 && !T.hidden && s.phase === 'play') {
-      this.steamT -= dt;
-      if (this.steamT <= 0) {
-        this.steamT = 0.3;
-        const side = Math.random() < 0.5 ? -1 : 1;
-        const sx = tg.position.x + Math.cos(this.tabaYaw) * 0.18 * side, sz = tg.position.z - Math.sin(this.tabaYaw) * 0.18 * side;
-        const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthWrite: false }));
-        const y0 = (T.sit ? 1.35 : 1.7);
-        m.position.set(sx, y0, sz);
-        this.scene.add(m);
-        this.fx.push({ obj: m, t: 0, dur: 0.9, step: (u) => { m.position.y = y0 + u * 0.6; m.scale.setScalar(1 + u * 2.5); m.material.opacity = 0.7 * (1 - u); } });
-      }
-    }
+    hm.color.copy(this.skinCol).lerp(this.redCol, Math.min(0.45, Math.max(0, ((T.stress || 0) - 0.4) / 0.6)));
     this.cone.position.x = tg.position.x; this.cone.position.z = tg.position.z;
     this.cone.rotation.y = this.tabaYaw;
     this.setCone(T.fov, s.phase === 'play' ? T.range : 0);
@@ -1320,14 +1351,17 @@ export class World {
   }
   updateNpcs(s, dt, t) {
     const taken = new Set(Object.values(s.players || {}).map((p) => p.seat % SEATS.length));
-    const key = [...taken].sort().join(',');
+    const snSeat = s.snitch ? s.snitch.seat : -1;
+    const key = [...taken].sort().join(',') + '|' + snSeat;
     if (key !== this.npcKey) {
       this.npcKey = key;
       for (const n of this.npcs) this.scene.remove(n);
       this.npcs = [];
       SEATS.forEach((st, i) => {
         if (taken.has(i)) return;
-        const h = makeHuman(NPC_LOOKS[i % NPC_LOOKS.length]);
+        const isSn = i === snSeat;
+        const h = makeHuman(isSn ? { shirt: 0xf1f5f9, vest: 0x334155, pants: 0x1e293b, hair: 0x5b4636, glasses: true } : NPC_LOOKS[i % NPC_LOOKS.length]);
+        h.userData.snitch = isSn;
         h.scale.setScalar(0.88);
         h.position.set(st.x, 0, st.z - 0.27);
         h.rotation.y = PI;
@@ -1342,6 +1376,18 @@ export class World {
     const tp = this.taba.position;
     for (const h of this.npcs) {
       const u = h.userData;
+      if (u.snitch && s.snitch) {
+        // a stréber figyeli a hozzá legközelebbi diákot, és jelentkezik, ha beárul
+        const sn = s.snitch;
+        poseHuman(h, sn.raise > 0 ? 'raise' : sn.off > 0 ? 'npcPhone' : 'watch', t, true);
+        let best = null, bd = 5;
+        for (const p of Object.values(s.players)) { const d = Math.hypot(p.x - sn.x, p.z - sn.z); if (d < bd) { bd = d; best = p; } }
+        const tx = sn.raise > 0 || !best ? tp.x : best.x, tz = sn.raise > 0 || !best ? tp.z : best.z;
+        let a = Math.atan2(tx - h.position.x, tz - h.position.z) - h.rotation.y;
+        a = Math.atan2(Math.sin(a), Math.cos(a));
+        u.head.rotation.y += (Math.max(-1.3, Math.min(1.3, a)) - u.head.rotation.y) * Math.min(1, dt * 5);
+        continue;
+      }
       const reacting = this.npcMoodT > 0 && this.npcMoodT < (this.npcDur || 9) - u.delay;
       poseHuman(h, reacting ? this.npcMood : u.idle, t + u.seed, true);
       if ((reacting && this.npcMood !== 'duck') || u.idle === 'npcLook') {

@@ -11,10 +11,10 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
 - **Vesztetek**, ha
   - lejár az 5 perces óra,
   - Taba háromszor rajtakap valakit („EGY!… KETTŐ!… HÁROM!”),
-  - valaki eltalálja Tabát a szivacslövő AK-val (azonnali vége).
+  - valaki eltalálja Tabát az airsoft AK-val (azonnali vége).
 - Taba akkor kap el, ha a látókúpjában (a padlón látszik) épp szabotálsz, vagy laptop / AK / megafon van a kezedben.
   Ilyenkor a feje mellett felemelt kezén mutatja (a kamera rá is közelít), hányadik lebukás („EGY!” – 1 ujj, „KETTŐ!” – 2 ujj, „HÁROM!” – 3 ujj).
-- **Mosdó:** az ajtón kimenve a mosdóba jutsz, ott nem lehet szabotálni. Ha 20 mp-nél tovább maradsz, Taba utánad jön
+- **Mosdó:** az ajtón kimenve a mosdóba jutsz, ott nem lehet szabotálni. Ha 15 mp-nél tovább maradsz, Taba utánad jön
   (addig a többiek szabadon szívathatnak). Ha a mosdóban elkap, visszavonszol a helyedre, és ez egy lebukás.
   Zöld kúp = el van foglalva, alig lát. Narancs = figyel. Sárga = mindjárt felnéz!
 
@@ -27,27 +27,33 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
 | Projektor kihúzása | konnektor a vászon mellett |
 | Tábla letörlése / firka | a táblánál; firkához kréta kell |
 | Laptop ellopása | amikor Taba nem ül ott – aztán kuka, szekrény, vagy ki az ablakon |
-| Pukipárna / ragasztó | Taba székére |
+| Rajzszög / ragasztó | Taba székére |
+| Jegyek átírása | Taba laptopján, az e-naplóban – sokat ér, de 6 mp-ig tart |
+| Tűzjelző | az ajtó mellett, egyszer – Taba kirohan, utána sokáig éber |
 | Bűzbomba, papírrepülő | dobd Taba felé |
 | Csörgő telefon | tedd le valahol, Taba odamegy elkobozni |
-| Szivacslövő AK | az egyik szekrényben van; projektor, vászon, óra, virág, földgömb, ablak, laptop lőhető |
+| Airsoft AK | az egyik szekrényben van; projektor, vászon, óra, virág, földgömb, ablak, laptop lőhető |
 | HDMI kihúzása | Taba laptopjánál – a vásznon „Nincs jel” |
 | Rajzolás a PPT-re | Taba laptopjánál – a rajzod fehér háttérrel megjelenik a vásznon |
 | Mémes pendrive | dugd a laptopba – mémek a PPT helyett |
 | Megafon | óriási zaj, Taba ordibálni kezd, aztán odanéz |
-| Banánhéj | tedd le Taba útjába – elcsúszik |
-| Gumikígyó | Taba asztalára – sikítva felugrik |
+| Vizes palack | öntsd ki Taba útjába – elcsúszik |
 
 A tárgyak minden órán máshol vannak. Többen játszva több pont kell, cserébe el lehet terelni Taba figyelmét.
+
+## Nehézség
+
+- Taba elfoglaltan is lát kb. 3 métert, gyakran felnéz, és a hangos dolgokra odafordul.
+- A stréber osztálytárs beárul, ha a közelében szabotálsz (papírgalacsinnal elhallgattatható).
+- Szívverés jelzi, ha veszélyben vagy; az utolsó 30 mp-ben ketyeg az óra.
 
 ## Hangulat
 
 - Taba helyzethez illő, száraz humorú szövegekkel reagál mindenre (sok változat, `js/lines.js`), szövegbuborékban.
-- Minél nagyobb a káosz, annál idegesebb: pirosodik a feje, gőzölög, gyorsabban beszél és mozog, gyakrabban néz fel.
-- Következmények: ragasztó után a szék egy ideig rajta marad, bűzbomba után zöld az arca.
+- Minél nagyobb a káosz, annál idegesebb: kipirul, gyorsabban mozog, gyakrabban néz fel.
 - Véletlen események: Windows-frissítés, anyukája telefonál, a hangosbemondó kihívja a teremből.
 - Kombó: a gyors egymásutáni szívatások egyre több pontot érnek.
-- Az üres helyeken osztálytársak ülnek (írnak, alszanak, telefonoznak), és reagálnak mindenre.
+- Az üres helyeken osztálytársak ülnek (írnak, alszanak, telefonoznak), és odanéznek, ha valami történik.
 - Az óra végén beírás az osztálynaplóba: mi történt, és ki milyen címet kapott.
 
 ## Bolt és érmék

@@ -94,8 +94,21 @@ const FIX = {
   usb: { spot: CHAIR_SPOT, dur: 2.2, say: 'fixUsb' },
   screen: { spot: { x: 3.0, z: -4.6, yaw: PI }, dur: 2.5, say: 'fixScreen' },
   projbroken: { spot: { x: 3.0, z: -4.6, yaw: PI }, dur: 6, say: 'fixProjBroken' },
+  grades: { spot: CHAIR_SPOT, dur: 3.5, say: 'fixGrades' },
 };
 const BUSY = ['laptop', 'board', 'projector', 'lecture', 'patrol'];
+// nehézség
+const D = {
+  gain: 0.62, // pontszorzó
+  rate: 0.55, // folyamatos pontok szorzója
+  susFill: 0.3, // ennyi mp alatt telik meg a gyanú
+  busyRange: 3.4, busyFov: 1.3, // elfoglalt Taba is lát valamennyit
+  glance: [3, 6.5], warn: 0.45, glanceLen: 2.2,
+  hear: 6.5, // ilyen távolságból hallja a hangos dolgokat
+  darkRange: 4.5,
+  walk: 1.95, rush: 2.7,
+};
+const NOISY = { switch: 1, fuse: 1, locker: 1, window: 1, outlet: 1, hdmi: 1, wipe: 1, throwlap: 1, bin: 1, lockhide: 1 };
 const EVENT_KINDS = ['update', 'call', 'away'];
 
 const COUNT = ['EGY!', 'KETTŐ!', 'HÁROM!'];
@@ -135,14 +148,14 @@ export class Sim {
       board: 0.4, doodle: false,
       laptop: 'desk', lapBroken: false, win: false, chairTrap: null, deskTrap: null,
       clock: true, plant: true, globe: true, glass: [1, 1],
-      lockers: [0, 0, 0], cd: {}, cloud: null, winUpdate: null, final: '', endKind: '',
+      lockers: [0, 0, 0], cd: {}, cloud: null, winUpdate: null, endKind: '', gradesDone: false, alarmUsed: false, alarm: 0, snitch: null,
       stats: { slips: 0, farts: 0, glued: 0, snakes: 0, stinks: 0, megas: 0, shots: 0, broken: 0, lapOut: 0, draws: 0, doodles: 0, wcHunts: 0, planes: 0, events: 0, maxCombo: 0 },
       taba: { x: P.chair.x, z: P.chair.z, yaw: 0, st: 'laptop', fov: 1.0, range: 2.2, say: '', sit: true, count: 0, stress: 0, chair: 0, green: 0, hidden: false },
       players: old, items: makeItems(),
     };
     for (const p of Object.values(old)) {
       const st = SEATS[p.seat % SEATS.length];
-      Object.assign(p, { x: st.x, z: st.z, yaw: st.yaw, held: null, act: null, sus: 0, immune: 3, seen: false, hot: 0, wc: 0, wcTotal: 0, score: 0, caught: 0, dragged: false, drawing: false });
+      Object.assign(p, { x: st.x, z: st.z, yaw: st.yaw, held: null, act: null, sus: 0, immune: 3, seen: false, hot: 0, wc: 0, wcTotal: 0, score: 0, caught: 0, dragged: false, drawing: false, snT: 0 });
       this.emit({ e: 'tp', pid: p.id, x: p.x, z: p.z, yaw: p.yaw });
     }
     this.counts = {};
@@ -159,7 +172,16 @@ export class Sim {
     this.last = 'lecture';
     this.reacts = [];
     this.combo = 0; this.lastHit = -99; this.comboSaid = -99;
-    this.eventT = rnd(28, 40); this.lastEvent = null;
+    this.eventT = rnd(45, 60); this.lastEvent = null;
+    this.alertT = 0;
+    // stréber: egy üres helyen ül, és beárul
+    const used = new Set(Object.values(this.s.players).map((p) => p.seat % SEATS.length));
+    const free = SEATS.map((_, i) => i).filter((i) => !used.has(i));
+    if (free.length) {
+      const seat = free[Math.floor(free.length / 2)];
+      const st = SEATS[seat];
+      this.s.snitch = { seat, x: st.x, z: st.z - 0.27, raise: 0, cd: 12, off: 0 };
+    }
     this.saidStress = {};
     this.chairLineT = 6;
     this.act = { kind: 'laptop', phase: 'do', t: 8, dur: 8, spot: { ...CHAIR_SPOT }, g: rnd(5, 8), m: 5 };
@@ -215,7 +237,8 @@ export class Sim {
       const n = (this.counts[key] = (this.counts[key] || 0) + 1);
       dim = Math.max(0.3, Math.pow(0.7, n - 1));
     }
-    let v = (base * dim) / this.scale();
+    const solo = Object.keys(s.players).length <= 1;
+    let v = (base * dim * D.gain * (solo ? 1.15 : 1)) / this.scale();
     const p = typeof by === 'string' ? s.players[by] : by;
     if (p) {
       // kombó: gyors egymásutánban jövő szívatások többet érnek
@@ -390,19 +413,26 @@ export class Sim {
       if (it.ammo <= 0) consume();
     } else if (it.type === 'plane') {
       p.hot = 0.5;
-      const c = [T.x, T.sit ? 1.0 : 1.3, T.z];
-      const tca = (c[0] - o[0]) * d[0] + (c[1] - o[1]) * d[1] + (c[2] - o[2]) * d[2];
       const maxT = Math.min(rayRoom(o, d), 11);
-      let hit = false, tEnd = maxT;
-      if (tca > 0.5 && tca < maxT && !inWC(T.x)) {
+      let hit = false, hitSn = false, tEnd = maxT;
+      const test = (c, r) => {
+        const tca = (c[0] - o[0]) * d[0] + (c[1] - o[1]) * d[1] + (c[2] - o[2]) * d[2];
+        if (tca < 0.4 || tca > tEnd) return false;
         const q = [o[0] + d[0] * tca, o[1] + d[1] * tca, o[2] + d[2] * tca];
-        if (Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]) < 0.6) { hit = true; tEnd = tca; }
-      }
+        if (Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]) < r) { tEnd = tca; return true; }
+        return false;
+      };
+      if (s.snitch && !inWC(p.x) && test([s.snitch.x, 1.0, s.snitch.z], 0.5)) hitSn = true;
+      if (!inWC(T.x) && !T.hidden && test([T.x, T.sit ? 1.0 : 1.3, T.z], 0.6)) { hit = true; hitSn = false; }
       this.emit({ e: 'plane', from: [o[0], o[1] - 0.1, o[2]], to: [o[0] + d[0] * tEnd, Math.max(0.05, o[1] + d[1] * tEnd), o[2] + d[2] * tEnd] });
       this.emit({ e: 'snd', n: 'whoosh' });
       consume();
+      if (hitSn) {
+        s.snitch.off = 25; s.snitch.raise = 0;
+        this.emit({ e: 'toast', m: 'A stréber egy ideig nem figyel', k: 'good' });
+      }
       if (hit) {
-        this.gain(5, 'Papírrepülő – telitalálat', 'plane', p);
+        this.gain(5, 'Papírgalacsin – telitalálat', 'plane', p);
         s.stats.planes++;
         if (this.stun <= 0 && this.countT <= 0) this.say(line('plane'), 2.4, 'angry');
         this.noise(p.x, p.z, 0.6, 2.4);
@@ -424,18 +454,24 @@ export class Sim {
       this.dropHeld(p);
       it.placed = true; it.ring = 3; it.ringing = false; it.by = p.id;
       this.emit({ e: 'toast', m: 'Telefon letéve – 3 mp múlva csörög!', k: 'info', pid: p.id });
-    } else if (it.type === 'banana') {
-      p.hot = 0.3;
+    } else if (it.type === 'water') {
+      p.hot = 0.6;
       this.dropHeld(p);
-      it.placed = true; it.by = p.id;
-      this.emit({ e: 'toast', m: 'Banánhéj letéve – ha Taba rálép…', k: 'info', pid: p.id });
+      it.placed = true; it.by = p.id; it.y = 0.01;
+      this.emit({ e: 'snd', n: 'pour' });
+      this.emit({ e: 'toast', m: 'Kiöntve – ha Taba belelép, elcsúszik', k: 'info', pid: p.id });
     }
   }
 
   complete(p, id) {
-    const s = this.s;
+    const s = this.s, T = s.taba;
     const held = p.held != null ? s.items[p.held] : null;
     const [kind, arg] = id.split(':');
+    if (NOISY[kind] && !T.hidden && inWC(p.x) === inWC(T.x) && dist(p.x, p.z, T.x, T.z) < D.hear) {
+      // hallotta: odafordul
+      p.hot = Math.max(p.hot, 0.7);
+      this.noise(p.x, p.z, 0.5, 2.2);
+    }
     const use = () => { held.gone = true; held.held = null; p.held = null; };
     switch (kind) {
       case 'switch':
@@ -463,10 +499,16 @@ export class Sim {
         this.gain(12, 'Mémes PPT a vásznon!', 'usb', p); this.emit({ e: 'snd', n: 'pick' });
         this.notice('usb', rnd(4, 7));
         break;
-      case 'snake':
-        if (!held || held.type !== 'snake') break;
-        use(); s.deskTrap = 'snake'; s.deskTrapBy = p.id;
-        this.gain(3, 'Gumikígyó az asztalon', null, p);
+      case 'grades':
+        s.gradesDone = true;
+        this.gain(20, 'Jegyek átírva az e-naplóban', 'grades', p);
+        this.notice('grades', rnd(9, 14));
+        break;
+      case 'alarm':
+        if (s.alarmUsed) break;
+        s.alarmUsed = true; p.hot = 1.0;
+        this.gain(16, 'Tűzriadó!', null, p);
+        this.startAlarm();
         break;
       case 'wipe':
         s.board = 0; this.gain(8, 'Tábla letörölve', 'wipe', p); this.emit({ e: 'snd', n: 'whoosh' });
@@ -501,9 +543,9 @@ export class Sim {
         break;
       }
       case 'chair':
-        if (!held || (held.type !== 'cushion' && held.type !== 'glue')) break;
+        if (!held || (held.type !== 'tack' && held.type !== 'glue')) break;
         s.chairTrap = held.type; s.chairTrapBy = p.id; use();
-        this.gain(3, held.type === 'cushion' ? 'Pukipárna a széken' : 'Ragasztó a széken', null, p);
+        this.gain(3, held.type === 'tack' ? 'Rajzszög a széken' : 'Ragasztó a széken', null, p);
         break;
       case 'locker':
         s.lockers[+arg] = 1; this.emit({ e: 'snd', n: 'click' });
@@ -588,7 +630,7 @@ export class Sim {
   // ---- Taba ------------------------------------------------------------
   startAct(kind, task) {
     const T = this.s.taba;
-    const a = { kind, phase: 'go', t: 0, g: rnd(4, 8) };
+    const a = { kind, phase: 'go', t: 0, g: rnd(...D.glance) };
     if (kind === 'laptop') { a.spot = { ...CHAIR_SPOT }; a.dur = rnd(12, 18); }
     else if (kind === 'projector') { a.spot = { x: 3.0, z: -4.7, yaw: PI }; a.dur = rnd(10, 14); }
     else if (kind === 'board') { a.spot = { x: P.board.x + rnd(-1, 1), z: -5.3, yaw: PI }; a.dur = rnd(10, 14); }
@@ -619,32 +661,51 @@ export class Sim {
     opts = opts.filter((k) => k !== this.lastEvent) ;
     const kind = pick(opts.length ? opts : ['call']);
     this.lastEvent = kind;
-    this.eventT = rnd(40, 60);
+    this.eventT = rnd(60, 80);
     s.stats.events++;
     T.sit = false;
     const a = { kind, phase: 'go', t: 0, g: 99, m: 4, li: 0 };
     if (kind === 'update') {
-      a.spot = { ...CHAIR_SPOT }; a.dur = 15;
+      a.spot = { ...CHAIR_SPOT }; a.dur = 11;
       s.winUpdate = 0;
-      this.emit({ e: 'evt', t: 'Windows-frissítés', d: 'Taba 15 másodpercig csak a töltőcsíkot bámulja.' });
+      this.emit({ e: 'evt', t: 'Windows-frissítés', d: 'Taba kb. 11 másodpercig csak a töltőcsíkot bámulja.' });
       this.emit({ e: 'snd', n: 'chime' });
       this.say(line('updStart'), 3, 'angry');
     } else if (kind === 'call') {
-      a.spot = { x: -4.3, z: 1.3, yaw: -PI / 2 }; a.dur = 15;
+      a.spot = { x: -4.3, z: 1.3, yaw: -PI / 2 }; a.dur = 11;
       this.emit({ e: 'evt', t: 'Bejövő hívás: Anyukám', d: 'Taba az ablaknál telefonál, háttal az osztálynak.' });
       this.emit({ e: 'snd', n: 'ringtone' });
       this.say(line('callStart'), 3);
     } else {
-      a.spot = { x: P.wcCenter.x, z: P.wcCenter.z, yaw: PI / 2 }; a.dur = 15; a.pre = 4;
-      this.emit({ e: 'evt', t: 'Hangosbemondó', d: 'Taba kimegy a teremből – kb. 15 másodperc szabad pálya.' });
+      a.spot = { x: P.wcCenter.x, z: P.wcCenter.z, yaw: PI / 2 }; a.dur = 11; a.pre = 4;
+      this.emit({ e: 'evt', t: 'Hangosbemondó', d: 'Taba kimegy a teremből – kb. 11 másodperc szabad pálya.' });
       this.announce(line('paAnnounce'));
     }
     a.path = findPath(T.x, T.z, a.spot.x, a.spot.z);
     this.act = a;
   }
 
+  // tűzriadó: Taba kirohan, utána sokáig éber
+  startAlarm() {
+    const s = this.s, T = s.taba;
+    this.releaseDrag();
+    if (this.act && this.act.kind !== 'drag') this.finish(this.act);
+    this.act = null;
+    this.stun = 0; this.look = null;
+    s.alarm = 12;
+    s.stats.alarm = 1;
+    this.emit({ e: 'evt', t: 'Tűzriadó', d: 'Taba kirohan ellenőrizni – kb. 12 másodperc. Utána nagyon éber lesz.' });
+    this.emit({ e: 'snd', n: 'alarm' });
+    this.say(line('alarmStart'), 2.5, 'yell');
+    const a = { kind: 'away', phase: 'go', t: 0, g: 99, m: 99, li: 0, alarm: true, spot: { x: P.wcCenter.x, z: P.wcCenter.z, yaw: PI / 2 }, dur: 9 };
+    a.path = findPath(T.x, T.z, a.spot.x, a.spot.z);
+    this.act = a;
+    this.eventT = Math.max(this.eventT, 40);
+  }
+
   startNext() {
     if (this.tasks.length) return this.startAct('fix', this.tasks.shift());
+    if (this.alertT > 0) return this.startAct(Math.random() < 0.5 ? 'patrol' : 'lecture');
     const busy = [];
     if (!this.lapLost) busy.push('laptop', 'laptop');
     if (!this.projLost) busy.push('projector');
@@ -672,20 +733,6 @@ export class Sim {
       this.last = 'drag'; this.act = null;
       return;
     }
-    // gumikígyó az asztalon
-    if (s.deskTrap === 'snake' && dist(a.spot.x, a.spot.z, P.chair.x, P.chair.z) < 0.8 && this.canStun()) {
-      s.deskTrap = null;
-      this.emit({ e: 'snd', n: 'scream' });
-      this.gain(14, 'Taba sikított a gumikígyótól', null, s.deskTrapBy);
-      s.stats.snakes++;
-      this.shake(0.3);
-      this.doStun(4.5, 'scared', line('snake'));
-      if (a.kind === 'fix') this.tasks.unshift(a.task);
-      if (a.kind === 'update') s.winUpdate = null;
-      this.act = null;
-      return;
-    }
-
     if (a.kind === 'update') {
       T.sit = true;
       if (this.sitTraps()) s.winUpdate = null;
@@ -754,20 +801,20 @@ export class Sim {
   // ráül a székére: pukipárna / ragasztó
   sitTraps() {
     const s = this.s;
-    if (s.chairTrap === 'cushion') {
+    if (s.chairTrap === 'tack') {
       s.chairTrap = null;
-      this.emit({ e: 'snd', n: 'fart' });
-      this.gain(14, 'Taba ráült a pukipárnára', null, s.chairTrapBy);
-      s.stats.farts++;
-      this.shake(0.4);
-      this.doStun(4, 'stun', line('cushion'), 'normal');
+      this.emit({ e: 'snd', n: 'ouch' });
+      this.gain(13, 'Taba ráült a rajzszögre', null, s.chairTrapBy);
+      s.stats.tacks = (s.stats.tacks || 0) + 1;
+      this.shake(0.3);
+      this.doStun(3, 'scared', line('tack'), 'yell');
       return true;
     }
     if (s.chairTrap === 'glue') {
       s.chairTrap = null;
       this.gain(12, 'Taba odaragadt a székhez', null, s.chairTrapBy);
       s.stats.glued++;
-      this.doStun(12, 'stuck', line('glue'), 'angry');
+      this.doStun(9, 'stuck', line('glue'), 'angry');
       return true;
     }
     return false;
@@ -791,7 +838,11 @@ export class Sim {
     if (a.kind === 'laptop' || a.kind === 'update') T.sit = false;
     if (a.kind === 'update') { this.s.winUpdate = null; if (a.phase === 'do' && a.t <= 0) this.say(line('updEnd')); }
     if (a.kind === 'call' && a.phase === 'do' && a.t <= 0) this.say(line('callEnd'));
-    if (a.kind === 'away') { if (T.hidden && a.t <= 0) this.say(line('paBack'), 3); T.hidden = false; }
+    if (a.kind === 'away') {
+      if (T.hidden && a.t <= 0) this.say(line(a.alarm ? 'alarmBack' : 'paBack'), 3, a.alarm ? 'angry' : 'normal');
+      if (a.alarm) this.alertT = 30;
+      T.hidden = false;
+    }
     this.last = a.kind;
     this.act = null;
   }
@@ -803,6 +854,7 @@ export class Sim {
       case 'fuse': s.power = true; s.cd.fuse = 40; break;
       case 'plug': s.plug = true; s.cd.outlet = 25; break;
       case 'draw': s.drawOn = false; s.cd.draw = 20; break;
+      case 'grades': s.gradesDone = false; s.cd.grades = 35; this.alertT = Math.max(this.alertT, 12); break;
       case 'hdmi': s.hdmi = true; s.cd.hdmi = 25; break;
       case 'usb': s.usb = false; this.say(line('usbTake')); break;
       case 'doodle': s.doodle = false; s.board = 0; s.cd.board = 15; break;
@@ -865,7 +917,6 @@ export class Sim {
       T.st = this.stunKind;
       if (this.stun <= 0) {
         if (this.act && this.act.kind === 'fix') this.tasks.unshift(this.act.task);
-        if (this.stunKind === 'stuck') { T.chair = 40; this.chairLineT = 2; }
         if (this.act && EVENT_KINDS.includes(this.act.kind)) this.finish(this.act);
         T.sit = false; this.last = 'laptop'; this.act = null;
       }
@@ -894,7 +945,7 @@ export class Sim {
         if (a.pre <= 0) this.say(line('paLeave'), 3);
       } else if (a.phase === 'go') {
         T.st = a.kind === 'drag' ? 'drag' : 'walk'; vis = 'full';
-        let left = (a.kind === 'fix' || a.kind === 'search' ? 2.3 : 1.7) * (1 + 0.35 * T.stress) * (T.chair > 0 ? 0.7 : 1) * dt;
+        let left = (a.kind === 'fix' || a.kind === 'search' || a.kind === 'away' ? D.rush : D.walk) * (1 + 0.3 * T.stress) * dt;
         while (left > 0 && a.path.length) {
           const t = a.path[0];
           const d = dist(T.x, T.z, t.x, t.z);
@@ -906,11 +957,11 @@ export class Sim {
         }
         // banánhéj!
         for (const it of s.items) {
-          if (it.type !== 'banana' || !it.placed || it.gone || a.kind === 'drag') continue;
-          if (dist(T.x, T.z, it.x, it.z) < 0.5 && this.canStun()) {
+          if (it.type !== 'water' || !it.placed || it.gone || a.kind === 'drag') continue;
+          if (dist(T.x, T.z, it.x, it.z) < 0.6 && this.canStun()) {
             it.gone = true;
             this.emit({ e: 'snd', n: 'slip' });
-            this.gain(13, 'Taba elcsúszott a banánhéjon', null, it.by);
+            this.gain(13, 'Taba elcsúszott a vizes padlón', null, it.by);
             s.stats.slips++;
             this.shake(0.5);
             if (a.kind === 'fix') this.tasks.unshift(a.task);
@@ -944,9 +995,9 @@ export class Sim {
           if (a.kind === 'board') s.board = Math.min(1, s.board + dt * 0.07);
           a.g -= dt;
           if (a.g <= 0) {
-            if (a.g > -0.75) { T.st = 'warn'; }
-            else if (a.g > -2.4) { T.st = 'glance'; vis = 'full'; this.wantYaw = yawTo(T.x, T.z, 0, 1.2); }
-            else { a.g = rnd(5, 9) * (1 - 0.45 * T.stress); this.wantYaw = a.spot.yaw; }
+            if (a.g > -D.warn) { T.st = 'warn'; }
+            else if (a.g > -D.warn - D.glanceLen) { T.st = 'glance'; vis = 'full'; this.wantYaw = yawTo(T.x, T.z, 0, 1.2); }
+            else { a.g = rnd(...D.glance) * (1 - 0.35 * T.stress); this.wantYaw = a.spot.yaw; }
           }
         }
         if (a.t <= 0 && this.act === a) this.finish(a);
@@ -960,9 +1011,9 @@ export class Sim {
 
     // látómező
     if (vis === 'full') { T.fov = 1.55; T.range = 14; }
-    else if (vis === 'busy') { T.fov = 1.0; T.range = 2.0; }
+    else if (vis === 'busy') { T.fov = D.busyFov; T.range = D.busyRange; }
     else { T.fov = 1.0; T.range = 0; }
-    if (isDark(s) && T.range > 3.2 && !inWC(T.x)) T.range = 3.2;
+    if (isDark(s) && T.range > D.darkRange && !inWC(T.x)) T.range = D.darkRange;
   }
 
   // ---- fő lépés --------------------------------------------------------
@@ -983,11 +1034,8 @@ export class Sim {
     for (const k in s.cd) if (s.cd[k] > 0) s.cd[k] -= dt;
     this.eventT -= dt;
     T.stress = Math.min(1, s.meter / 100);
-    if (T.green > 0) T.green -= dt;
-    if (T.chair > 0) {
-      T.chair -= dt;
-      if ((this.chairLineT -= dt) <= 0) { this.chairLineT = rnd(9, 13); this.react('glueChair', 0, 'normal'); }
-    }
+    if (this.alertT > 0) this.alertT -= dt;
+    if (s.alarm > 0) s.alarm -= dt;
     for (const [lvl, key] of [[50, 'stress50'], [75, 'stress75']]) {
       if (s.meter >= lvl && !this.saidStress[lvl]) { this.saidStress[lvl] = true; this.react(key, 0.5, 'angry'); }
     }
@@ -1024,7 +1072,6 @@ export class Sim {
       if (!s.cloud.hit && this.canStun() && dist(T.x, T.z, s.cloud.x, s.cloud.z) < 3.2) {
         s.cloud.hit = true;
         this.doStun(6, 'stun', line('stink'), 'angry');
-        T.green = 14;
         s.stats.stinks++;
         this.emit({ e: 'snd', n: 'cough' });
         this.gain(12, 'Taba fuldoklik a bűztől', 'stinkhit', s.cloud.by);
@@ -1044,9 +1091,28 @@ export class Sim {
     if (this.stun > 0) rate += 0.6;
     if (s.win) rate += 0.1;
     if (inWC(T.x)) rate += 0.3;
-    if (T.chair > 0) rate += 0.25;
-    if (rate > 0) { s.meter = Math.min(METER_MAX, s.meter + (rate * dt) / this.scale()); this.checkWin(); }
+    if (T.hidden) rate += 0.3;
+    if (rate > 0) { s.meter = Math.min(METER_MAX, s.meter + (rate * D.rate * dt) / this.scale()); this.checkWin(); }
     if (s.phase !== 'play') return;
+
+    // stréber: ha a közelében szabotálnak, szól Tabának
+    const sn = s.snitch;
+    if (sn) {
+      if (sn.cd > 0) sn.cd -= dt;
+      if (sn.off > 0) sn.off -= dt;
+      if (sn.raise > 0) sn.raise -= dt;
+      for (const p of Object.values(s.players)) {
+        const held = p.held != null ? s.items[p.held] : null;
+        const bad = (p.act || p.drawing || p.hot > 0 || (held && ITEMS[held.type].contraband)) && !inWC(p.x) && !p.dragged;
+        if (bad && sn.off <= 0 && dist(p.x, p.z, sn.x, sn.z) < 4.2) p.snT += dt; else p.snT = Math.max(0, p.snT - dt);
+        if (p.snT > 1.4 && sn.cd <= 0 && !T.hidden && !inWC(T.x) && this.countT <= 0 && this.endT <= 0) {
+          p.snT = 0; sn.cd = 16; sn.raise = 3;
+          this.emit({ e: 'snitch', m: line('snitch', { n: p.name }), pid: p.id });
+          // Taba azonnal odanéz
+          if (this.stun <= 0) { this.look = { x: p.x, z: p.z, d: 0.5, t: 3 }; this.react('snitchReact', 0.3, 'angry', { n: p.name }); }
+        }
+      }
+    }
 
     // játékosok
     const dirX = Math.sin(T.yaw), dirZ = Math.cos(T.yaw);
@@ -1087,7 +1153,7 @@ export class Sim {
       const held = p.held != null ? s.items[p.held] : null;
       if (p.drawing && (dist(p.x, p.z, P.laptop.x, P.laptop.z) > 2.4 || s.laptop !== 'desk' || s.drawOn)) p.drawing = false;
       const sus = !!p.act || p.drawing || p.hot > 0 || (held && ITEMS[held.type].contraband) || (pWC && tabaWC);
-      if (seen && sus && p.immune <= 0) p.sus += dt / (pWC ? 0.35 : 0.45);
+      if (seen && sus && p.immune <= 0) p.sus += dt / (pWC ? 0.3 : D.susFill);
       else p.sus = Math.max(0, p.sus - dt / 1.2);
       if (p.sus >= 1) { this.strike(p); if (s.phase !== 'play' || this.endT > 0) return; }
     }

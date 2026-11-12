@@ -4,7 +4,7 @@
 export const ROUND_TIME = 300; // 5 perces óra
 export const METER_MAX = 100;
 export const MAX_STRIKES = 3;
-export const WC_LIMIT = 20; // ennyi mp után jön Taba a mosdóba
+export const WC_LIMIT = 15; // ennyi mp után jön Taba a mosdóba
 export const EYE = 1.55;
 export const PLAYER_R = 0.28;
 export const ROOM = { x0: -5, x1: 5, z0: -6, z1: 6, h: 3.2 };
@@ -53,6 +53,7 @@ export const P = {
   clock: { x: -0.8, y: 2.74, z: -5.93 },
   plant: { x: -4.4, y: 0.8, z: 5.3 },
   chalkTray: { x: -0.1, y: 0.93, z: -5.84 },
+  alarm: { x: 4.95, y: 1.4, z: -5.62 },
   sink: { x: 6.2, z: -5.72 },
   stalls: [-5.42, -4.27, -3.15], // vécék z-koordinátái (x = 8.85)
   wcCenter: { x: 6.5, z: -4.3 },
@@ -70,17 +71,18 @@ for (const z of [3.3, 1.6, -0.1]) for (const x of [0, -2.6, 2.6]) SEATS.push({ x
 export const PLAYER_COLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xff6fb1, 0x95a5a6];
 
 // ---- skinek (a boltban vehetők) ---------------------------------------------
+// ruhák (a boltban vehetők)
 export const SKINS = [
   { id: 'alap', name: 'Alap', price: 0 },
-  { id: 'sport', name: 'Sportoló', price: 30, shirt: 0xffffff, pants: 0x1d4ed8, hair: 0x7a4a22, hat: 'band', hatC: 0xe11d48 },
-  { id: 'rapper', name: 'Rapper', price: 75, shirt: 0x151515, pants: 0x2b2b2b, hair: 0x111111, hat: 'cap', hatC: 0xf5c518, acc: 'chain' },
-  { id: 'gamer', name: 'Gamer', price: 120, shirt: 0x22c55e, pants: 0x111827, hair: 0x3b2a1a, hat: 'phones', hatC: 0x1f2937 },
-  { id: 'kaloz', name: 'Kalóz', price: 180, shirt: 0xf5f0e6, vest: 0x7f1d1d, pants: 0x3b2a1a, hair: 0x111111, hat: 'pirate', hatC: 0x111111, acc: 'patch' },
-  { id: 'buli', name: 'Szilveszteri', price: 220, shirt: 0x1f2937, pants: 0x111827, hair: 0x2b211b, hat: 'tophat', hatC: 0xdc2626, acc: 'streamer' },
-  { id: 'robot', name: 'Robot', price: 260, shirt: 0x9ca3af, pants: 0x6b7280, skin: 0xc9d1dc, hair: 0x9ca3af, hat: 'antenna', hatC: 0xef4444 },
-  { id: 'dino', name: 'Dínó', price: 380, shirt: 0x4ade80, pants: 0x16a34a, hair: 0x22c55e, hat: 'dino', hatC: 0x16a34a },
-  { id: 'kiraly', name: 'Király', price: 550, shirt: 0x7c3aed, pants: 0xf5f5f5, hair: 0xc79a3a, hat: 'crown', hatC: 0xf5c518, acc: 'cape' },
-  { id: 'arany', name: 'Arany legenda', price: 900, shirt: 0xf5c518, pants: 0xd4a017, skin: 0xffd76a, hair: 0xf5c518, hat: 'crown', hatC: 0xfff1a8, acc: 'chain' },
+  { id: 'kapucnis', name: 'Kapucnis pulóver', price: 40, shirt: 0x4b5563, pants: 0x1f2937, hair: 0x3b2a1a, hat: 'hood', hatC: 0x4b5563 },
+  { id: 'melegito', name: 'Melegítő', price: 80, shirt: 0x111827, pants: 0x111827, hair: 0x111111, acc: 'stripes' },
+  { id: 'farmer', name: 'Farmerdzseki', price: 120, shirt: 0x3b5b8a, pants: 0x1f2937, hair: 0x7a4a22, acc: 'collar' },
+  { id: 'sapka', name: 'Kötött sapka', price: 160, shirt: 0x7f1d1d, pants: 0x27272a, hair: 0x3b2a1a, hat: 'beanie', hatC: 0x1f2937 },
+  { id: 'baseball', name: 'Baseballsapka', price: 200, shirt: 0xe5e7eb, pants: 0x1e3a8a, hair: 0x111111, hat: 'cap', hatC: 0x111827 },
+  { id: 'bor', name: 'Bőrdzseki', price: 300, shirt: 0x1c1917, pants: 0x0f172a, hair: 0x111111, acc: 'collar' },
+  { id: 'napszemuveg', name: 'Napszemüveg', price: 420, shirt: 0xf5f5f4, pants: 0x292524, hair: 0x7a4a22, acc: 'shades' },
+  { id: 'oltony', name: 'Öltöny', price: 600, shirt: 0xf8fafc, vest: 0x1e293b, tie: 0x7f1d1d, pants: 0x1e293b, hair: 0x111111 },
+  { id: 'buli', name: 'Szilveszteri cilinder', price: 900, shirt: 0x1f2937, pants: 0x111827, hair: 0x2b211b, hat: 'tophat', hatC: 0xdc2626 },
 ];
 export const skinById = (id) => SKINS.find((s) => s.id === id) || SKINS[0];
 
@@ -157,18 +159,17 @@ NAV.push({ x: 4.45, z: DOOR.z }, { x: 5.6, z: DOOR.z }, { x: P.wcCenter.x, z: P.
 
 // ---- tárgyak ----------------------------------------------------------------
 export const ITEMS = {
-  laptop: { name: 'Taba laptopja', hint: 'Rejtsd el: kuka, szekrény, vagy ki az ablakon!', contraband: true },
-  ak: { name: 'Szivacslövő AK', hint: 'Lődd szét a projektort, vásznat, laptopot – de Tabát NE!', contraband: true, use: 'LŐ' },
-  megaphone: { name: 'Megafon', hint: 'Óriási zaj – Taba kiborul és ordibálni kezd', contraband: true, use: 'ZAJ' },
-  usb: { name: 'Mémes pendrive', hint: 'Dugd Taba laptopjába – a vásznon mémek jönnek a PPT helyett' },
+  laptop: { name: 'Taba laptopja', hint: 'Rejtsd el: kuka, szekrény, vagy ki az ablakon', contraband: true },
+  ak: { name: 'Airsoft AK', hint: 'Projektor, vászon, laptop – de ha Tabát eltalálod, vége', contraband: true, use: 'LŐ' },
+  megaphone: { name: 'Megafon', hint: 'Hatalmas zaj – Taba kiborul, aztán megkeresi, ki volt', contraband: true, use: 'ZAJ' },
+  usb: { name: 'Pendrive', hint: 'Dugd Taba laptopjába – a vásznon más jelenik meg' },
   chalk: { name: 'Kréta', hint: 'Firkálj vele a táblára' },
-  cushion: { name: 'Pukipárna', hint: 'Tedd Taba székére' },
+  tack: { name: 'Rajzszög', hint: 'Tedd Taba székére' },
   glue: { name: 'Pillanatragasztó', hint: 'Kend Taba székére' },
-  snake: { name: 'Gumikígyó', hint: 'Tedd Taba asztalára, a laptop mellé' },
-  banana: { name: 'Banánhéj', hint: 'Tedd le oda, ahol Taba járkál', use: 'LETESZ' },
+  water: { name: 'Vizes palack', hint: 'Öntsd ki ott, ahol Taba jár – megcsúszik', use: 'KIÖNT' },
   stink: { name: 'Bűzbomba', hint: 'Dobd Taba közelébe', use: 'DOB' },
   phone: { name: 'Csörgő telefon', hint: 'Tedd le valahol – elcsalja Tabát', use: 'LETESZ' },
-  plane: { name: 'Papírrepülő', hint: 'Dobd meg vele Tabát', use: 'DOB' },
+  plane: { name: 'Papírgalacsin', hint: 'Dobd meg vele a strébert – egy ideig nem árul be', use: 'DOB' },
 };
 
 function shuffle(a) {
@@ -187,7 +188,7 @@ export function makeItems() {
   add('laptop', P.laptop.x, P.laptop.y, P.laptop.z);
   add('chalk', P.chalkTray.x, P.chalkTray.y, P.chalkTray.z, { home: true });
 
-  const pool = shuffle(['stink', 'glue', 'cushion', 'phone', 'megaphone', 'usb', 'banana', 'snake']);
+  const pool = shuffle(['stink', 'glue', 'tack', 'phone', 'megaphone', 'usb', 'water']);
   const lockerTypes = shuffle(['ak', pool.pop(), pool.pop()]);
   lockerTypes.forEach((t, i) => {
     const L = P.lockers[i];
@@ -254,14 +255,15 @@ export function interactions(s, p) {
       if (!s.lockers[i]) add('locker:' + i, 'Szekrény kinyitása', L, 0.7, 1.5);
       else if (ht === 'laptop') add('lockhide:' + i, 'Laptop a szekrénybe', L, 1.0, 1.5);
     });
-    if ((ht === 'cushion' || ht === 'glue') && !s.chairTrap && !T.sit) {
-      add('chair', ht === 'cushion' ? 'Pukipárna a székre' : 'Ragasztó a székre', P.chair, 1.6);
+    if ((ht === 'tack' || ht === 'glue') && !s.chairTrap && !T.sit) {
+      add('chair', ht === 'tack' ? 'Rajzszög a székre' : 'Ragasztó a székre', P.chair, 1.6);
     }
+    if (!s.alarmUsed) add('alarm', 'TŰZJELZŐ benyomása', P.alarm, 1.5, 1.4);
     const atDesk = s.laptop === 'desk' && !T.sit && !s.lapBroken;
     if (atDesk && s.hdmi && !(cd.hdmi > 0)) add('hdmi', 'HDMI-kábel kihúzása', { ...P.laptop, x: P.laptop.x - 0.25 }, 1.0, 1.5);
     if (atDesk && ht === 'usb' && !s.usb) add('usb', 'Pendrive a laptopba', P.laptop, 1.5, 1.6);
     else if (atDesk && !s.drawOn && !(cd.draw > 0)) add('draw', 'Rajzolás a PPT-re', P.laptop, 0.5, 1.6);
-    if (ht === 'snake' && !s.deskTrap) add('snake', 'Gumikígyó az asztalra', P.snake, 1.0, 1.6);
+    if (atDesk && !s.gradesDone && !(cd.grades > 0)) add('grades', 'Jegyek átírása az e-naplóban', { ...P.laptop, x: P.laptop.x + 0.3 }, 6, 1.6);
   }
   for (const it of s.items) {
     if (it.gone || it.held != null || it.placed) continue;

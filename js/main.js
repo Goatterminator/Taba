@@ -135,6 +135,9 @@ function renderShop() {
     const col = '#' + studentLook(sk.id, 0).shirt.toString(16).padStart(6, '0');
     b.innerHTML = `<span class="ic" style="--c:${col}"></span><span class="nm"></span><span class="pr"></span>`;
     b.querySelector('.ic').textContent = sk.name[0];
+    const sc = studentLook(sk.id, 0).shirt;
+    const lum = 0.299 * ((sc >> 16) & 255) + 0.587 * ((sc >> 8) & 255) + 0.114 * (sc & 255);
+    b.querySelector('.ic').style.color = lum > 150 ? '#1f2937' : '#fff';
     b.querySelector('.nm').textContent = sk.name;
     b.querySelector('.pr').innerHTML = sk.id === wallet.skin ? 'Rajtad' : owned ? 'Megvan' : `${COIN} ${sk.price}`;
     b.onclick = () => { shopSel = sk.id; renderShop(); };
@@ -238,17 +241,17 @@ function renderReport() {
   const s = view, st = s.stats || {};
   const L = [];
   const add = (cond, txt) => { if (cond) L.push(txt); };
-  add(st.slips, `Taba ${st.slips}× tesztelte a gravitációt egy banánhéjon.`);
-  add(st.farts, `${st.farts} gyanús hang hallatszott a tanári szék felől.`);
-  add(st.glued, 'A tanár úr egy ideig a székével együtt tanított.');
-  add(st.snakes, 'Egy gumikígyó miatt sikítás hallatszott a folyosóig.');
+  add(st.slips, `Taba ${st.slips}× elcsúszott a vizes padlón.`);
+  add(st.tacks, 'Rajzszög a tanári széken.');
+  add(st.glued, 'Pillanatragasztó a tanári széken.');
+  add(st.alarm, 'Indokolatlan tűzriasztás.');
   add(st.stinks, `${st.stinks} bűzbomba. A terem szellőztetésre szorul. Hosszú szellőztetésre.`);
   add(st.megas, `${st.megas}× megafon. A szomszéd teremben is jegyzeteltek.`);
   add(st.lapOut, 'A tanári laptop az ablakon át elhagyta az épületet.');
   add(st.draws, `${st.draws} saját „mű” került kivetítésre.`);
   add(st.doodles, 'A tábla kortárs művészeti alkotással gazdagodott.');
   add(st.shots, `${st.shots} szivacslövedék, ${st.broken} eltalált berendezési tárgy.`);
-  add(st.planes, `${st.planes} papírrepülő ért célba.`);
+  add(st.planes, `${st.planes} papírgalacsin ért célba.`);
   add(st.wcHunts, `Taba ${st.wcHunts}× járőrözött a mosdóban.`);
   add(st.maxCombo >= 3, `Leghosszabb szívatás-sorozat: ${st.maxCombo} egymás után.`);
   if (!L.length) L.push('Különösebb esemény nem történt. Taba szerint ez élete legszebb órája volt.');
@@ -285,8 +288,7 @@ function renderReport() {
 let comboTimer = 0;
 function combo(n) {
   const el = $('combo');
-  const words = ['', '', 'DUPLA', 'TRIPLA', 'NÉGYES SOROZAT', 'TELJES KÁOSZ'];
-  el.textContent = `${words[Math.min(n, 5)]}  ×${n}`;
+  el.textContent = `SOROZAT ×${n}`;
   el.hidden = true; void el.offsetWidth; el.hidden = false;
   clearTimeout(comboTimer);
   comboTimer = setTimeout(() => (el.hidden = true), 1600);
@@ -343,9 +345,13 @@ function banner(big, small) {
 function handleEvent(ev) {
   if (!ev) return;
   switch (ev.e) {
-    case 'gain': toast(`+${ev.v}  ${ev.m}`, 'good'); play('gain'); world.npcReact('laugh', 1.8); break;
+    case 'gain': toast(`+${ev.v}  ${ev.m}`, 'good'); play('gain'); world.npcReact('watch', 1.6); break;
+    case 'snitch':
+      toast(`Stréber: „${ev.m}”`, 'bad'); play('snitch');
+      if (ev.pid === myId) { try { navigator.vibrate?.([60, 40, 60]); } catch { /* ignore */ } }
+      break;
     case 'combo': combo(ev.n); break;
-    case 'evt': eventBanner(ev.t, ev.d); world.npcReact('laugh', 1.2); break;
+    case 'evt': eventBanner(ev.t, ev.d); world.npcReact('watch', 2); break;
     case 'shake': world.shake(ev.a); break;
     case 'toast': if (!ev.pid || ev.pid === myId) toast(ev.m, ev.k); break;
     case 'say': {
@@ -502,7 +508,7 @@ const ST = {
   laptop: 'laptopozik', projector: 'a projektorral bajlódik', board: 'a táblára ír', fix: 'javít valamit',
   lecture: 'magyaráz – figyel', walk: 'járkál – figyel', warn: 'gyanakszik…', glance: 'FELNÉZ!', look: 'odanéz!',
   count: 'számol', stun: 'kiakadt', stuck: 'odaragadt a székhez',
-  yell: 'ORDIBÁL', slip: 'a földön fekszik', scared: 'sikít', drag: 'visszavonszol valakit', phone: 'telefonál az anyukájával',
+  yell: 'ORDIBÁL', slip: 'a földön fekszik', scared: 'felugrott', drag: 'visszavonszol valakit', phone: 'telefonál az anyukájával',
 };
 const cache = {};
 function setText(el, key, v) { if (cache[key] !== v) { cache[key] = v; el.textContent = v; } }
@@ -602,6 +608,15 @@ function updateHud() {
     }
   }
   for (const [id, el] of tags) if (!s.players[id]) { el.remove(); tags.delete(id); }
+
+  // feszültség: szívverés, ha veszélyben vagy; ketyegés az utolsó 30 mp-ben; riadó
+  const now = performance.now();
+  const held = p && p.held != null ? s.items[p.held] : null;
+  const risky = p && (p.act || p.drawing || (held && ITEMS[held.type].contraband));
+  const danger = Math.max(sus, risky && (s.taba.st === 'warn' || s.taba.st === 'glance' || seen) ? 0.5 : 0);
+  if (danger > 0.15 && now - (cache.beat || 0) > 750 - 380 * Math.min(1, danger)) { cache.beat = now; play('heart'); }
+  if (s.t <= 30 && Math.ceil(s.t) !== cache.tick) { cache.tick = Math.ceil(s.t); play('tick'); }
+  if ((s.alarm || 0) > 0 && now - (cache.alarm || 0) > 900) { cache.alarm = now; play('alarm'); }
 
   // csörgő telefon hangja
   if (s.items.some((i) => i.ringing && !i.gone) && performance.now() - lastRing > 900) { lastRing = performance.now(); play('ring'); }
