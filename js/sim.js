@@ -942,13 +942,6 @@ export class Sim {
           // elfoglalt: háttal van / lefelé néz, de néha felpillant
           T.st = a.kind === 'fix' ? 'fix' : a.kind; vis = 'busy';
           if (a.kind === 'board') s.board = Math.min(1, s.board + dt * 0.07);
-          // motyogás munka közben
-          a.m = (a.m ?? rnd(3, 6)) - dt;
-          if (a.m <= 0 && this.sayT < 0) {
-            a.m = rnd(7, 11);
-            const mk = { laptop: 'mumbleLaptop', projector: 'mumbleProjector', board: 'mumbleBoard' }[a.kind] || 'mumbleFix';
-            this.say(line(mk), 2.6);
-          }
           a.g -= dt;
           if (a.g <= 0) {
             if (a.g > -0.75) { T.st = 'warn'; }

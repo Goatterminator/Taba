@@ -43,25 +43,6 @@ export const LINES = {
     'Szép rajz. Most már csak a tananyag hiányzik mellőle.',
     'Csak sétálok. Teljesen véletlenül pont erre.',
   ],
-  mumbleLaptop: [
-    'Frissítés. Már megint frissítés.',
-    'Hogy kell ezt nagyobbra húzni?',
-    'Ki állította át angolra?',
-    'Négyszázhuszonhárom olvasatlan levél. Remek.',
-    'Miért van az asztalon egy Új mappa hetes?',
-  ],
-  mumbleProjector: [
-    'Kék kép. Mindig kék kép.',
-    'HDMI egy, HDMI kettő, HDMI pánik.',
-    'Ez a projektor idősebb, mint ti.',
-  ],
-  mumbleBoard: [
-    'Ez a kréta csikorog. Mint én hétfőn reggel.',
-    'Szép kézírás. Nem az enyém, de szép.',
-    'Ki tette a szivacsot a tábla tetejére? Mindegy.',
-  ],
-  mumbleFix: ['Mindent nekem kell megcsinálni.', 'Ezért nem fizetnek eleget.', 'Ezt is beírom a jegyzőkönyvbe.'],
-
   fixLights: ['Ki kapcsolta le a villanyt? Nem a középkorban vagyunk. Még.', 'Sötét van. Mint a középkor. Nagyon vicces.'],
   fixFuse: ['Már megint a biztosíték. Ez a terem többször esik le, mint Bizánc.', 'Biztosíték. Persze. Magától. Mint mindig.'],
   fixPlug: ['Ki húzta ki a projektort? Ő magától nem sétál el.', 'A konnektor nem dísz, emberek.'],

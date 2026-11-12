@@ -7,18 +7,7 @@ export function unlockAudio() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
   } catch { /* nincs hang */ }
-  // iOS: a beszédszintézist egy érintéssel kell „feloldani”
-  try {
-    const ss = window.speechSynthesis;
-    if (ss && !speechUnlocked) {
-      speechUnlocked = true;
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0;
-      ss.speak(u);
-    }
-  } catch { /* ignore */ }
 }
-let speechUnlocked = false;
 export function setMuted(m) { muted = m; }
 
 function tone(freq, dur, { type = 'sine', vol = 0.2, to = null, delay = 0 } = {}) {
@@ -96,47 +85,4 @@ const SOUNDS = {
 export function play(name) {
   if (muted || !ctx || ctx.state !== 'running') return;
   try { SOUNDS[name]?.(); } catch { /* ignore */ }
-}
-
-// Taba hangja: a telefon beépített (gépi, „AI”) felolvasóhangja magyarul.
-// Ha nincs magyar hang a készüléken, „blablázó” szintetikus hang szól helyette.
-let voices = [];
-function loadVoices() { try { voices = window.speechSynthesis?.getVoices() || []; } catch { voices = []; } }
-loadVoices();
-try { window.speechSynthesis?.addEventListener?.('voiceschanged', loadVoices); } catch { /* ignore */ }
-function huVoice() {
-  if (!voices.length) loadVoices();
-  const hu = voices.filter((v) => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith('hu'));
-  return hu.find((v) => /male|férfi|tamas|google/i.test(v.name)) || hu[0] || null;
-}
-export const hasHuVoice = () => !!huVoice();
-
-function babble(text, mood, vol) {
-  if (!ctx || ctx.state !== 'running') return;
-  const syl = Math.min(22, Math.max(3, Math.round(text.replace(/[^a-záéíóöőúüű]/gi, '').length / 2.6)));
-  const base = mood === 'pa' ? 210 : mood === 'yell' ? 230 : mood === 'angry' ? 170 : 125;
-  const step = mood === 'yell' ? 0.085 : 0.11;
-  for (let i = 0; i < syl; i++) {
-    const f = base * (0.85 + Math.random() * 0.4);
-    tone(f, step * 0.9, { type: mood === 'yell' ? 'sawtooth' : 'square', vol: (mood === 'yell' ? 0.16 : 0.08) * vol, to: f * (0.8 + Math.random() * 0.4), delay: i * step });
-  }
-}
-
-export function speak(text, mood = 'normal', vol = 1, stress = 0) {
-  if (muted || !text) return;
-  vol = Math.max(0.15, Math.min(1, vol));
-  try {
-    const ss = window.speechSynthesis;
-    const v = ss && huVoice();
-    if (!v) { babble(text, mood, vol); return; }
-    const u = new SpeechSynthesisUtterance(mood === 'yell' ? text.toUpperCase() : text);
-    u.voice = v; u.lang = v.lang || 'hu-HU';
-    u.volume = vol;
-    if (mood === 'pa') { u.rate = 0.95; u.pitch = 1.15; }
-    else if (mood === 'yell') { u.rate = 1.3; u.pitch = 1.35; }
-    else if (mood === 'angry') { u.rate = 1.18 + stress * 0.15; u.pitch = 0.95 + stress * 0.15; }
-    else { u.rate = 1.05 + stress * 0.25; u.pitch = 0.75 + stress * 0.2; }
-    ss.cancel();
-    ss.speak(u);
-  } catch { babble(text, mood, vol); }
 }

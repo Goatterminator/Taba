@@ -3,7 +3,7 @@ import { World, studentLook, DRAW_COLORS } from './world.js';
 import { Sim } from './sim.js';
 import { Controls } from './controls.js';
 import { createNet, makeCode } from './net.js';
-import { play, speak, unlockAudio, setMuted } from './audio.js';
+import { play, unlockAudio, setMuted } from './audio.js';
 import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js';
 
 const $ = (id) => document.getElementById(id);
@@ -350,10 +350,6 @@ function handleEvent(ev) {
     case 'toast': if (!ev.pid || ev.pid === myId) toast(ev.m, ev.k); break;
     case 'say': {
       if (mode !== 'play') break;
-      const T = view.taba;
-      let vol = 1 - Math.hypot(T.x - me.x, T.z - me.z) / 16;
-      if (inWC(T.x) !== inWC(me.x)) vol *= 0.55;
-      speak(ev.m, ev.mood, ev.mood === 'yell' || ev.mood === 'pa' ? 1 : vol, ev.stress || 0);
       if (ev.mood === 'yell') world.npcReact('duck', 2.4);
       if (ev.mood === 'pa') toast('Hangosbemondó: ' + ev.m, 'info');
       break;
