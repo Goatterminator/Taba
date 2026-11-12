@@ -75,7 +75,17 @@ export const LINES = {
   fixPhone: ['Kinek csörög a telefonja? Nem kell felvenni. Felveszem én.', 'Halló? Nem, nem ér rá. Órán van. Viszonthallásra.'],
   usbTake: ['Ezt a pendrive-ot elkobzom. Történelmi lelet lesz belőle.'],
 
+  // ha mérges: érettségi-szöveg
+  eleg: [
+    'Ebből már elég! Mindjárt itt az érettségi!',
+    'Ebből már elég! Ez érettségi tantárgy, valaki figyelne végre?!',
+    'Mindjárt itt az érettségi, és ti ezt csináljátok?!',
+    'Ez érettségi tantárgy! Valaki figyelne?!',
+    'Elég! Az érettségin nem fogok ott ülni mellettetek!',
+  ],
   yell: [
+    'EBBŐL MÁR ELÉG! MINDJÁRT ITT AZ ÉRETTSÉGI!',
+    'EZ ÉRETTSÉGI TANTÁRGY! VALAKI FIGYELNE?!',
     'MI EZ A HANGZAVAR?!',
     'AZ ÉN FÜLEM IS FEUDÁLIS JOGOKAT ÉLVEZ!',
     'EZ NEM VÁSÁR, HANEM TÖRIÓRA!',
@@ -103,15 +113,15 @@ export const LINES = {
   react_glass: ['Az ablak! Ennek a gondnok úr nagyon fog örülni.'],
 
   strike1: ['{c} {n}. Ez még csak figyelmeztetés.', '{c} Igen, {n}, rád gondoltam.', '{c} {n}, vissza a helyedre. Feudalizmus van, mindenkinek megvan a helye.'],
-  strike2: ['{c} {n}. Még egy, és megnézhetitek az igazgatói irodát belülről.', '{c} Szépen haladunk, {n}. Rossz irányba.', '{c} {n}. A jobbágyok sem szöktek el ennyiszer.'],
+  strike2: ['{c} {n}, ebből már elég! Mindjárt itt az érettségi!', '{c} {n}. Még egy, és megnézhetitek az igazgatói irodát belülről.', '{c} Szépen haladunk, {n}. Rossz irányba.', '{c} {n}. A jobbágyok sem szöktek el ennyiszer.'],
   strike3: ['{c} Ennyi volt. Mindenki az igazgatóiba. Sorban. Fegyelmezetten. Ahogy egész órán nem.', '{c} Vége. Ezt a napot elmesélem az unokáimnak. Elrettentő példaként.'],
   strikeWC: ['{c} {n}, a mosdó nem menedékjog. Gyere vissza.', '{c} {n}, húsz perce vagy itt. Jó, húsz másodperce. Ugyanaz.'],
   drag: ['Ülj le. És maradj ülve. Mint egy hűséges vazallus.', 'Itt a helyed. A hűbéri lánc legalsó szemén.'],
   wcHunt: ['Hol van már {n}? Megnézem. Ha a mosdóban telefonozik, abból felelés lesz.', '{n} még mindig nincs itt. A középkorban ezért elvették volna a birtokát.'],
   wcEmpty: ['Senki. Csak én és a csöpögő csap.', 'Üres. Akkor meg hol volt? Gyanús.'],
-  combo: ['Mi folyik itt? Ez nem óra, ez egy parasztfelkelés!', 'Dózsa György kevesebb káoszt okozott!', 'Ez összeesküvés. Tudom. Látom. Bizonyítani nem tudom.'],
-  stress50: ['Nyugodt vagyok. Teljesen nyugodt vagyok.', 'Mély levegő. Egy. Kettő. Nem, nem számolok. Még.'],
-  stress75: ['Huszonkét év tanítás. Ezért.', 'Ha ez így megy tovább, kérem az áthelyezésemet. A középkorba.'],
+  combo: ['Ebből már elég! Mindjárt itt az érettségi!', 'Ez érettségi tantárgy! Valaki figyelne végre?!', 'Mi folyik itt? Ez nem óra, ez egy parasztfelkelés!', 'Dózsa György kevesebb káoszt okozott!', 'Ez összeesküvés. Tudom. Látom. Bizonyítani nem tudom.'],
+  stress50: ['Ebből már elég. Mindjárt itt az érettségi.', 'Nyugodt vagyok. Teljesen nyugodt vagyok.', 'Mély levegő. Egy. Kettő. Nem, nem számolok. Még.'],
+  stress75: ['Ebből már elég! Ez érettségi tantárgy, valaki figyelne!', 'Huszonkét év tanítás. Ezért.', 'Ha ez így megy tovább, kérem az áthelyezésemet. A középkorba.'],
 
   updStart: ['Ne… ne most frissíts. Kérlek. Csak most ne.', 'Windows frissítés. Na, ennyit az óráról.'],
   updMid: ['Ez lassabb, mint a népvándorlás.', 'Ne kapcsolja ki a számítógépet. Jó. Nem kapcsolom. Csak nézem.', 'Ezt a frissítést még Nagy Károly indította el.', 'Csak pár perc, azt írja. Ezt mondta a hűbérúr is.'],

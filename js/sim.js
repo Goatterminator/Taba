@@ -196,6 +196,10 @@ export class Sim {
     this.reacts.push({ key, t: delay, mood, vars, life: 7 });
   }
   shake(a = 0.5) { this.emit({ e: 'shake', a }); }
+  // mérges reakció: idegesebb Tabánál gyakran jön az érettségis szöveg
+  angry(key, vars) {
+    return Math.random() < 0.2 + 0.4 * this.s.taba.stress ? line('eleg') : line(key, vars);
+  }
 
   canStun() { return this.stun <= 0 && this.countT <= 0 && this.endT <= 0 && !this.s.taba.hidden && !(this.act && this.act.kind === 'drag'); }
   doStun(t, kind, line, mood = 'yell') {
@@ -589,7 +593,7 @@ export class Sim {
     else if (kind === 'projector') { a.spot = { x: 3.0, z: -4.7, yaw: PI }; a.dur = rnd(10, 14); }
     else if (kind === 'board') { a.spot = { x: P.board.x + rnd(-1, 1), z: -5.3, yaw: PI }; a.dur = rnd(10, 14); }
     else if (kind === 'lecture') { a.spot = { x: rnd(-1, 1.5), z: -4.2, yaw: 0 }; a.dur = rnd(5, 8); }
-    else if (kind === 'fix') { a.task = task; a.spot = task.spot; a.dur = task.dur; if (task.say) this.say(LINES[task.say] ? line(task.say) : task.say, 3, task.mood || 'angry'); }
+    else if (kind === 'fix') { a.task = task; a.spot = task.spot; a.dur = task.dur; if (task.say) this.say(LINES[task.say] ? this.angry(task.say) : task.say, 3, task.mood || 'angry'); }
     T.sit = false;
     if (kind === 'patrol' || kind === 'search') {
       const a1 = pick(AISLES);
@@ -851,7 +855,7 @@ export class Sim {
       if (r.life <= 0) { this.reacts.splice(i, 1); continue; }
       if (r.t <= 0 && this.countT <= 0 && !T.hidden && this.sayT < 0.6 && this.endT <= 0) {
         this.reacts.splice(i, 1);
-        this.say(line(r.key, r.vars), 3, r.mood);
+        this.say(r.mood === 'angry' && !r.key.startsWith('stress') ? this.angry(r.key, r.vars) : line(r.key, r.vars), 3, r.mood);
         break;
       }
     }
