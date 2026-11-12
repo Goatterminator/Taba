@@ -12,7 +12,10 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
   - lejár az 5 perces óra,
   - Taba háromszor rajtakap valakit („EGY!… KETTŐ!… HÁROM!”),
   - valaki eltalálja Tabát a szivacslövő AK-val (azonnali vége).
-- Taba akkor kap el, ha a látókúpjában (a padlón látszik) épp szabotálsz, vagy laptop / AK van a kezedben.
+- Taba akkor kap el, ha a látókúpjában (a padlón látszik) épp szabotálsz, vagy laptop / AK / megafon van a kezedben.
+  Ilyenkor az ujjain mutatja, hányadik lebukás („EGY!” – 1 ujj, „KETTŐ!” – 2 ujj, „HÁROM!” – 3 ujj).
+- **Mosdó:** az ajtón kimenve a mosdóba jutsz, ott nem lehet szabotálni. Ha 20 mp-nél tovább maradsz, Taba utánad jön
+  (addig a többiek szabadon szívathatnak). Ha a mosdóban elkap, visszavonszol a helyedre, és ez egy lebukás.
   Zöld kúp = el van foglalva, alig lát. Narancs = figyel. Sárga = mindjárt felnéz!
 
 ## Mit lehet csinálni?
@@ -28,9 +31,24 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
 | Bűzbomba, papírrepülő | dobd Taba felé |
 | Csörgő telefon | tedd le valahol, Taba odamegy elkobozni |
 | Távirányító | cicás videó a kivetítőre |
-| Szivacslövő AK | az egyik szekrényben van; projektor, óra, virág, földgömb, ablak, laptop lőhető |
+| Szivacslövő AK | az egyik szekrényben van; projektor, vászon, óra, virág, földgömb, ablak, laptop lőhető |
+| HDMI kihúzása | Taba laptopjánál – a vásznon „Nincs jel” |
+| Mémes pendrive | dugd a laptopba – mémek a PPT helyett |
+| Megafon | óriási zaj, Taba ordibálni kezd, aztán odanéz |
+| Banánhéj | tedd le Taba útjába – elcsúszik |
+| Gumikígyó | Taba asztalára – sikítva felugrik |
 
 A tárgyak minden órán máshol vannak. Többen játszva több pont kell, cserébe el lehet terelni Taba figyelmét.
+
+## Taba hangja
+
+Taba a telefon beépített magyar felolvasóhangján beszél (köszön, magyaráz, számol, ordibál – helyzettől függően).
+Ha a készüléken nincs magyar hang, „blablázó” gépi hang szól helyette. Androidon: Beállítások → Szövegfelolvasás → magyar hang letöltése.
+
+## Bolt és érmék
+
+Minden óra végén érmét kapsz (szívatás-mérő, saját szabotázsaid, győzelem, megmaradt idő alapján).
+A főmenü **Bolt** gombjában skineket vehetsz a karakteredre, ezeket a többi játékos is látja. Az érmék a telefonon tárolódnak.
 
 ## Irányítás
 

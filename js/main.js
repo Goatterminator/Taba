@@ -1,10 +1,10 @@
 // Fő vezérlés: menük, játékhurok, hálózat összekötése a szimulációval és a megjelenítéssel.
-import { World } from './world.js';
+import { World, studentLook } from './world.js';
 import { Sim } from './sim.js';
 import { Controls } from './controls.js';
 import { createNet, makeCode } from './net.js';
 import { play, speak, unlockAudio, setMuted } from './audio.js';
-import { ITEMS, EYE, METER_MAX, ROUND_TIME, PLAYER_COLORS, interactions, collide } from './data.js';
+import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js';
 
 const $ = (id) => document.getElementById(id);
 const PI = Math.PI;
@@ -34,6 +34,23 @@ const me = { x: 0, z: 4, yaw: PI, pitch: 0, bob: 0 };
 let target = null, actDown = false;
 let lastSim = performance.now(), lastSnap = 0, lastPos = 0, lastRing = 0, walkT = 0;
 let muted = store.get('taba.muted') === '1';
+let faceT = 0, shopSel = null;
+
+// ---- érmék és skinek (a készüléken tárolva) ----------------------------------
+const wallet = {
+  coins: Math.max(0, parseInt(store.get('taba.coins') || '0', 10) || 0),
+  owned: (() => { try { const o = JSON.parse(store.get('taba.owned') || '[]'); return Array.isArray(o) ? o : []; } catch { return []; } })(),
+  skin: store.get('taba.skin') || 'alap',
+};
+if (!wallet.owned.includes('alap')) wallet.owned.push('alap');
+if (!wallet.owned.includes(wallet.skin)) wallet.skin = 'alap';
+function saveWallet() {
+  store.set('taba.coins', String(wallet.coins));
+  store.set('taba.owned', JSON.stringify(wallet.owned));
+  store.set('taba.skin', wallet.skin);
+  $('menuCoins').textContent = wallet.coins;
+  $('shopCoins').textContent = wallet.coins;
+}
 setMuted(muted);
 
 // ---- menü ---------------------------------------------------------------
@@ -47,7 +64,7 @@ const myName = () => {
   return n;
 };
 function show(id) {
-  for (const s of ['menu', 'lobby', 'end', 'help']) $(s).hidden = s !== id;
+  for (const s of ['menu', 'lobby', 'end', 'help', 'shop']) $(s).hidden = s !== id;
 }
 function menuMsg(t) { $('menuMsg').textContent = t || ''; $('menuMsg').hidden = !t; }
 
@@ -55,7 +72,7 @@ $('btnSolo').onclick = () => {
   unlockAudio();
   role = 'solo'; myId = 'me';
   sim = new Sim(onSimEvent);
-  sim.addPlayer(myId, myName());
+  sim.addPlayer(myId, myName(), wallet.skin);
   sim.start();
   view = sim.s;
 };
@@ -68,14 +85,14 @@ $('btnHost').onclick = () => {
   n.onOpen = () => {
     role = 'host'; myId = 'host';
     sim = new Sim(onSimEvent);
-    sim.addPlayer(myId, myName());
+    sim.addPlayer(myId, myName(), wallet.skin);
     view = sim.s;
     enterLobby();
   };
   n.onMsg = (pid, m) => {
     if (!sim || !m) return;
     if (m.t === 'hello') {
-      if (!sim.s.players[pid]) sim.addPlayer(pid, m.name);
+      if (!sim.s.players[pid]) sim.addPlayer(pid, m.name, m.skin);
       n.send(pid, { t: 'hi', pid });
       n.send(pid, { t: 's', s: sim.s });
     } else sim.handle(pid, m);
@@ -91,7 +108,7 @@ $('btnJoin').onclick = () => {
   code = c;
   const n = createNet(code, false);
   net = n;
-  n.onOpen = () => n.send('host', { t: 'hello', name: myName() });
+  n.onOpen = () => n.send('host', { t: 'hello', name: myName(), skin: wallet.skin });
   n.onMsg = (_, m) => {
     if (!m) return;
     if (m.t === 'hi') { myId = m.pid; role = 'client'; }
@@ -102,6 +119,45 @@ $('btnJoin').onclick = () => {
   n.onClose = () => { if (net === n) { leave(); menuMsg('A szoba megszűnt (a gazdája kilépett).'); } };
 };
 $('btnHelp').onclick = () => show('help');
+
+// ---- bolt ---------------------------------------------------------------
+function renderShop() {
+  const grid = $('skinGrid');
+  grid.textContent = '';
+  for (const sk of SKINS) {
+    const b = document.createElement('button');
+    const owned = wallet.owned.includes(sk.id);
+    b.className = 'skin' + (sk.id === shopSel ? ' sel' : '') + (sk.id === wallet.skin ? ' eq' : '') + (!owned && sk.price > wallet.coins ? ' poor' : '');
+    const col = '#' + studentLook(sk.id, 0).shirt.toString(16).padStart(6, '0');
+    b.innerHTML = `<span class="ic" style="--c:${col}"></span><span class="nm"></span><span class="pr"></span>`;
+    b.querySelector('.ic').textContent = sk.icon;
+    b.querySelector('.nm').textContent = sk.name;
+    b.querySelector('.pr').textContent = sk.id === wallet.skin ? '✔ Rajtad' : owned ? 'Megvan' : `🪙 ${sk.price}`;
+    b.onclick = () => { shopSel = sk.id; renderShop(); };
+    grid.appendChild(b);
+  }
+  const sel = skinById(shopSel);
+  const btn = $('btnShopBuy');
+  const owned = wallet.owned.includes(sel.id);
+  btn.disabled = sel.id === wallet.skin || (!owned && sel.price > wallet.coins);
+  btn.textContent = sel.id === wallet.skin ? `✔ ${sel.name} rajtad van` : owned ? `Felveszem: ${sel.name}` : sel.price > wallet.coins ? `Még ${sel.price - wallet.coins} 🪙 kell` : `Megveszem: ${sel.name} (🪙 ${sel.price})`;
+  $('shopCoins').textContent = wallet.coins;
+}
+$('btnShop').onclick = () => { unlockAudio(); shopSel = wallet.skin; mode = 'shop'; show('shop'); renderShop(); };
+$('btnShopClose').onclick = () => { mode = 'menu'; show('menu'); };
+$('btnShopBuy').onclick = () => {
+  const sk = skinById(shopSel);
+  if (!wallet.owned.includes(sk.id)) {
+    if (sk.price > wallet.coins) return;
+    wallet.coins -= sk.price;
+    wallet.owned.push(sk.id);
+    play('win');
+  } else play('pick');
+  wallet.skin = sk.id;
+  saveWallet();
+  renderShop();
+};
+saveWallet();
 $('btnHelpClose').onclick = () => show('menu');
 $('btnLeave').onclick = () => leave();
 $('btnEndExit').onclick = () => leave();
@@ -161,7 +217,11 @@ function enterEnd() {
   $('endTitle').textContent = won ? 'GYŐZELEM! 🎉' : 'LEBUKTATOK! 😬';
   $('endReason').textContent = view.reason;
   const left = Math.ceil(view.t);
-  $('endStats').innerHTML = `<div><b>${Math.floor(view.meter)}%</b>szívatás</div><div><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>maradt</div><div><b>${view.strikes}/3</b>lebukás</div>`;
+  const mine = view.players[myId];
+  const reward = coinReward(view, mine);
+  wallet.coins += reward;
+  saveWallet();
+  $('endStats').innerHTML = `<div><b>${Math.floor(view.meter)}%</b>szívatás</div><div><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b>maradt</div><div><b>${view.strikes}/3</b>lebukás</div><div><b>+${reward} 🪙</b>érme (össz.: ${wallet.coins})</div>`;
   $('btnAgain').hidden = role === 'client';
   $('endWait').hidden = role !== 'client';
   show('end');
@@ -194,11 +254,21 @@ function toast(text, kind = 'info') {
   setTimeout(() => d.remove(), 3300);
 }
 let bannerTimer = 0;
-function banner(big, small) {
+// rajzolt kéz: n ujj felemelve
+function handSvg(n) {
+  let f = '';
+  for (let i = 0; i < 4; i++) {
+    const up = i < n;
+    f += `<rect x="${20 + i * 21}" y="${up ? 8 : 52}" width="19" height="${up ? 78 : 30}" rx="9.5"/>`;
+  }
+  return `<svg class="hand" viewBox="0 0 124 150" aria-hidden="true"><g fill="#f0c8a0" stroke="#5a3a20" stroke-width="4">${f}<rect x="14" y="62" width="92" height="76" rx="22"/><rect x="88" y="82" width="20" height="42" rx="10" transform="rotate(-35 98 103)"/></g></svg>`;
+}
+function banner(big, small, fingers = 0) {
   const b = $('banner');
   b.hidden = true;
   void b.offsetWidth;
   b.textContent = big;
+  if (fingers) b.insertAdjacentHTML('afterbegin', handSvg(fingers));
   if (small) { const s = document.createElement('small'); s.textContent = small; b.appendChild(s); }
   b.hidden = false;
   clearTimeout(bannerTimer);
@@ -208,11 +278,20 @@ function handleEvent(ev) {
   if (!ev) return;
   switch (ev.e) {
     case 'gain': toast(`+${ev.v}  ${ev.m}`, 'good'); play('gain'); break;
-    case 'toast': toast(ev.m, ev.k); break;
+    case 'toast': if (!ev.pid || ev.pid === myId) toast(ev.m, ev.k); break;
+    case 'say': {
+      if (mode !== 'play') break;
+      const T = view.taba;
+      let vol = 1 - Math.hypot(T.x - me.x, T.z - me.z) / 16;
+      if (inWC(T.x) !== inWC(me.x)) vol *= 0.55;
+      speak(ev.m, ev.mood, ev.mood === 'yell' ? 1 : vol);
+      break;
+    }
     case 'snd': play(ev.n); break;
     case 'strike':
-      banner(ev.m, ev.name ? `Taba elkapta: ${ev.name}` : '');
-      play('strike'); speak(ev.m);
+      banner(ev.m, ev.hit ? 'Eltaláltátok Tabát!' : ev.name ? `Taba elkapta: ${ev.name}${ev.wc ? ' a mosdóban' : ''}` : '', ev.hit ? 0 : Math.min(ev.n, 3));
+      play('strike');
+      if (ev.pid === myId) faceT = 2.8;
       try { navigator.vibrate?.(ev.pid === myId ? [120, 60, 200] : 80); } catch { /* ignore */ }
       break;
     case 'tp':
@@ -265,6 +344,7 @@ const ST = {
   laptop: '💻 laptopozik', projector: '📽️ a projektorral babrál', board: '✍️ a táblára ír', fix: '🔧 javít valamit',
   lecture: '🗣️ magyaráz – figyel!', walk: '🚶 járkál – figyel!', warn: '❓ gyanakszik…', glance: '👀 FELNÉZ!', look: '👀 odanéz!',
   count: '😡 számol!', stun: '😵 kiakadt', stuck: '🪑 odaragadt a székhez',
+  yell: '🤬 ORDIBÁL!', slip: '🍌 elcsúszott!', scared: '🐍 sikít!', drag: '😠 visszavonszol valakit',
 };
 const cache = {};
 function setText(el, key, v) { if (cache[key] !== v) { cache[key] = v; el.textContent = v; } }
@@ -282,8 +362,14 @@ function updateHud() {
     [...$('strikes').children].forEach((el, i) => el.classList.toggle('on', i < s.strikes));
   }
   const seen = p && p.seen, sus = p ? p.sus : 0;
-  setText($('tabaSt'), 'st', `Taba ${ST[s.taba.st] || ''}${seen ? ' · LÁT TÉGED' : ''}`);
-  const cls = 'pill ' + (sus > 0.05 ? 'caught' : seen ? 'seen' : 'safe');
+  const meWC = inWC(me.x), tabaWC = inWC(s.taba.x);
+  let stText = `Taba ${ST[s.taba.st] || ''}${seen ? ' · LÁT TÉGED' : ''}`;
+  if (p && p.dragged) stText = '😩 Taba visszavonszol a helyedre…';
+  else if (meWC && !tabaWC) stText = `🚽 Mosdó – itt nem tudsz szabotálni · ${Math.floor(p ? p.wc : 0)}/${WC_LIMIT} mp`;
+  else if (meWC) stText = `🚽 Taba a mosdóban van!${seen ? ' · LÁT TÉGED' : ''}`;
+  else if (tabaWC) stText = '🚽 Taba kiment a mosdóba – most szívass!';
+  setText($('tabaSt'), 'st', stText);
+  const cls = 'pill ' + (sus > 0.05 ? 'caught' : seen || (meWC && p && p.wc > WC_LIMIT - 6) ? 'seen' : 'safe');
   if (cache.stCls !== cls) { cache.stCls = cls; $('status').className = cls; }
   $('vignette').style.opacity = Math.min(1, sus * 1.2).toFixed(2);
 
@@ -334,7 +420,7 @@ function updateHud() {
     const pos = world.project(world.taba.position.x, T.sit ? 1.75 : 2.05, world.taba.position.z);
     bub.hidden = !pos.ok;
     setText(bub, 'say', T.say);
-    bub.classList.toggle('angry', T.st === 'count');
+    bub.classList.toggle('angry', T.st === 'count' || T.st === 'yell' || T.st === 'scared');
     bub.style.transform = `translate(${pos.x.toFixed(0)}px, ${pos.y.toFixed(0)}px) translate(-50%, -100%)`;
   } else bub.hidden = true;
   for (const [id, q] of Object.entries(s.players)) {
@@ -343,7 +429,7 @@ function updateHud() {
     if (!el) {
       el = document.createElement('div');
       el.className = 'tag';
-      el.style.color = '#' + PLAYER_COLORS[q.seat % PLAYER_COLORS.length].toString(16).padStart(6, '0');
+      el.style.color = '#' + studentLook(q.skin, q.seat).shirt.toString(16).padStart(6, '0');
       $('labels').appendChild(el);
       tags.set(id, el);
     }
@@ -362,15 +448,15 @@ function updateHud() {
 }
 
 function updateLobby() {
-  const key = Object.values(view.players).map((p) => p.seat + p.name).join('|');
+  const key = Object.values(view.players).map((p) => p.seat + p.name + p.skin).join('|');
   if (cache.lobby === key) return;
   cache.lobby = key;
   const ul = $('lobbyList');
   ul.textContent = '';
   for (const p of Object.values(view.players)) {
     const li = document.createElement('li');
-    li.textContent = p.name + (p.id === myId ? ' (te)' : '');
-    li.style.setProperty('--c', '#' + PLAYER_COLORS[p.seat % PLAYER_COLORS.length].toString(16).padStart(6, '0'));
+    li.textContent = `${skinById(p.skin).icon} ${p.name}${p.id === myId ? ' (te)' : ''}`;
+    li.style.setProperty('--c', '#' + studentLook(p.skin, p.seat).shirt.toString(16).padStart(6, '0'));
     ul.appendChild(li);
   }
 }
@@ -403,13 +489,30 @@ function frame(now) {
 
   if (mode === 'play') {
     ctl.update();
+    const mp = view.players[myId];
+    if (faceT > 0) {
+      // lebukáskor odanézünk Tabára, hogy lássuk, hányat mutat
+      faceT -= dt;
+      const tp = world.taba.position;
+      const want = Math.atan2(tp.x - me.x, tp.z - me.z);
+      let d = want - ctl.yaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      ctl.yaw += d * Math.min(1, dt * 8);
+      const wantP = Math.atan2(2.2 - EYE, Math.max(0.5, Math.hypot(tp.x - me.x, tp.z - me.z)));
+      ctl.pitch += (wantP - ctl.pitch) * Math.min(1, dt * 8);
+    }
     me.yaw = ctl.yaw; me.pitch = ctl.pitch;
-    const f = ctl.move.y, r = ctl.move.x;
+    const dragged = mp && mp.dragged;
+    if (dragged) {
+      me.x += (mp.x - me.x) * Math.min(1, dt * 10);
+      me.z += (mp.z - me.z) * Math.min(1, dt * 10);
+    }
+    const f = dragged ? 0 : ctl.move.y, r = dragged ? 0 : ctl.move.x;
     if (f || r) {
       const sp = 3.3 * dt;
       const nx = me.x + (Math.sin(me.yaw) * f - Math.cos(me.yaw) * r) * sp;
       const nz = me.z + (Math.cos(me.yaw) * f + Math.sin(me.yaw) * r) * sp;
-      [me.x, me.z] = collide(nx, nz);
+      [me.x, me.z] = collide(nx, nz, me.x, me.z);
       walkT += dt * 9 * Math.min(1, Math.hypot(f, r));
       me.bob = Math.sin(walkT) * 0.025;
     } else me.bob *= 0.85;
@@ -421,8 +524,14 @@ function frame(now) {
     world.update(view, myId, dt, t, me);
   } else {
     if (mode === 'lobby') updateLobby();
-    // lassan pásztázó kamera a menü mögött
-    const cam = { x: Math.sin(t * 0.12) * 2.6, z: 5.2, yaw: PI + Math.sin(t * 0.12) * 0.25, pitch: -0.1, bob: 0 };
+    // lassan pásztázó kamera a menü mögött; a boltban a kiválasztott skin látszik
+    let cam;
+    if (mode === 'shop') {
+      cam = innerWidth > innerHeight
+        ? { x: 0.95, z: -1.0, yaw: PI, pitch: -0.12, bob: -0.3 }
+        : { x: 0, z: -0.5, yaw: PI, pitch: -0.5, bob: 0.25 };
+    } else cam = { x: Math.sin(t * 0.12) * 2.6, z: 5.2, yaw: PI + Math.sin(t * 0.12) * 0.25, pitch: -0.1, bob: 0 };
+    world.setPreview(mode === 'shop' ? shopSel : null);
     world.update(view, myId, dt, t, cam);
   }
   world.render();
@@ -434,4 +543,4 @@ setInterval(() => { if (document.hidden && role === 'host') tickSim(performance.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && role !== 'host') lastSim = performance.now(); });
 
 // tesztekhez / hibakereséshez
-window.__taba = { world, ctl, me, get sim() { return sim; }, get view() { return view; }, get mode() { return mode; }, get role() { return role; }, get myId() { return myId; }, send };
+window.__taba = { world, ctl, me, wallet, get sim() { return sim; }, get view() { return view; }, get mode() { return mode; }, get role() { return role; }, get myId() { return myId; }, send };

@@ -1,6 +1,6 @@
 // 3D-s megjelenítés (Three.js): a terem, Taba, a diákok, tárgyak és effektek.
 import * as THREE from '../vendor/three.module.min.js';
-import { ROOM, P, DESKS, EYE, PLAYER_COLORS, projState, isDark } from './data.js';
+import { ROOM, WC, DOOR, P, DESKS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js';
 
 const PI = Math.PI;
 const matCache = new Map();
@@ -36,7 +36,107 @@ const lerpAngle = (a, b, k) => {
 
 // ---- emberkék -----------------------------------------------------------
 const SKIN = 0xf0c8a0;
-function makeHuman(o) {
+const HAIRS = [0x3b2a1a, 0x111111, 0xc79a3a, 0x7a4a22, 0x9a3b1a];
+
+// diák kinézete a skin alapján
+export function studentLook(skinId, seat = 0) {
+  const sk = skinById(skinId);
+  return {
+    shirt: sk.shirt ?? PLAYER_COLORS[seat % PLAYER_COLORS.length],
+    pants: sk.pants ?? 0x34495e,
+    hair: sk.hair ?? HAIRS[seat % HAIRS.length],
+    skin: sk.skin, vest: sk.vest, hat: sk.hat, hatC: sk.hatC, acc: sk.acc,
+  };
+}
+
+function addHat(head, body, o) {
+  const c = o.hatC ?? 0x222222;
+  switch (o.hat) {
+    case 'cap': {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.222, 16, 8, 0, PI * 2, 0, PI * 0.5), mat(c));
+      put(head, m, 0, 0.03, 0);
+      put(head, box(0.26, 0.025, 0.2, c), 0, 0.05, 0.2);
+      break;
+    }
+    case 'band': {
+      const m = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.03, 6, 20), mat(c));
+      m.rotation.x = PI / 2;
+      put(head, m, 0, 0.07, 0);
+      break;
+    }
+    case 'phones': {
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(0.235, 0.025, 6, 16, PI), mat(c));
+      put(head, arc, 0, 0.0, 0);
+      for (const s of [-1, 1]) {
+        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.06, 12), mat(0x4ade80));
+        cup.rotation.z = PI / 2;
+        put(head, cup, s * 0.225, -0.01, 0);
+      }
+      break;
+    }
+    case 'pirate': {
+      put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 16), mat(c)), 0, 0.13, 0);
+      put(head, box(0.34, 0.16, 0.28, c), 0, 0.22, 0);
+      put(head, box(0.07, 0.07, 0.01, 0xffffff), 0, 0.22, 0.145);
+      break;
+    }
+    case 'tophat': {
+      const gl = { emissive: 0x3a0000 };
+      put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 18), mat(c, gl)), 0, 0.15, 0);
+      put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 0.34, 18), mat(c, gl)), 0, 0.33, 0);
+      put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.183, 0.183, 0.06, 18), mat(0xf5c518)), 0, 0.2, 0);
+      break;
+    }
+    case 'antenna':
+      put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 6), mat(0x555555)), 0, 0.3, 0);
+      put(head, new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshBasicMaterial({ color: c })), 0, 0.42, 0);
+      for (const s of [-1, 1]) put(head, box(0.04, 0.09, 0.09, 0x6b7280), s * 0.21, 0, 0);
+      break;
+    case 'crown': {
+      put(head, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.17, 0.1, 14, 1, true), mat(c, { side: THREE.DoubleSide })), 0, 0.23, 0);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * PI * 2;
+        put(head, new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.09, 6), mat(c)), Math.sin(a) * 0.155, 0.32, Math.cos(a) * 0.155);
+      }
+      put(head, new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mat(0xe11d48)), 0, 0.24, 0.17);
+      break;
+    }
+    case 'dino':
+      for (let i = 0; i < 4; i++) {
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.13, 6), mat(c));
+        sp.rotation.x = -0.5 - i * 0.35;
+        put(head, sp, 0, 0.2 - i * 0.07, -0.05 - i * 0.06);
+      }
+      for (let i = 0; i < 4; i++) {
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 6), mat(c));
+        sp.rotation.x = -PI / 2;
+        put(body, sp, 0, 1.36 - i * 0.16, -0.18);
+      }
+      break;
+  }
+}
+
+let plaidMat = null;
+function getPlaid() {
+  if (!plaidMat) {
+    const t = canvasTex(64, 64, (g) => {
+      g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(20,20,20,.9)';
+      for (const [x, w] of [[2, 6], [12, 2], [20, 6], [34, 3], [42, 6], [54, 2]]) g.fillRect(x, 0, w, 64);
+      g.fillStyle = 'rgba(40,40,40,.35)';
+      for (const [y, h] of [[6, 4], [26, 6], [46, 4]]) g.fillRect(0, y, 64, h);
+    });
+    t.magFilter = THREE.NearestFilter;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(2, 2);
+    plaidMat = new THREE.MeshLambertMaterial({ map: t });
+  }
+  return plaidMat;
+}
+
+export function makeHuman(o) {
+  const skin = o.skin ?? SKIN;
+  const shirtBox = (w, h, d, c) => (o.pattern === 'plaid' ? new THREE.Mesh(boxGeo(w, h, d), getPlaid()) : box(w, h, d, c));
   const g = new THREE.Group();
   const body = new THREE.Group();
   g.add(body);
@@ -47,58 +147,193 @@ function makeHuman(o) {
     put(hip, box(0.18, 0.09, 0.28, 0x222222), 0, -0.78, 0.04);
     legs.push(hip);
     const sh = put(body, new THREE.Group(), side * 0.33, 1.4, 0);
-    put(sh, box(0.13, 0.58, 0.14, o.sleeve ?? o.shirt), 0, -0.27, 0);
-    put(sh, box(0.11, 0.11, 0.11, SKIN), 0, -0.61, 0);
+    put(sh, shirtBox(0.13, 0.58, 0.14, o.sleeve ?? o.shirt), 0, -0.27, 0);
+    sh.userData.fist = put(sh, box(0.11, 0.11, 0.11, skin), 0, -0.61, 0);
     arms.push(sh);
   }
-  put(body, box(0.52, 0.62, 0.3, o.shirt), 0, 1.13, 0);
+  put(body, shirtBox(0.52, 0.62, 0.3, o.shirt), 0, 1.13, 0);
+  if (o.pattern === 'plaid') put(body, box(0.2, 0.06, 0.04, 0x1a1a1a), 0, 1.42, 0.14); // gallér
   if (o.vest) put(body, box(0.54, 0.5, 0.32, o.vest), 0, 1.1, 0);
-  const head = put(body, new THREE.Group(), 0, 1.63, 0);
-  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), mat(SKIN)));
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.215, 16, 10, 0, PI * 2, 0, PI * 0.5), mat(o.hair));
-  hair.rotation.x = -0.25;
-  head.add(hair);
-  for (const side of [-1, 1]) put(head, box(0.035, 0.035, 0.02, 0x222222), side * 0.075, 0.02, 0.19);
-  put(head, box(0.04, 0.05, 0.05, 0xe2b48c), 0, -0.03, 0.2);
-  if (o.glasses) {
-    for (const side of [-1, 1]) {
-      const r = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.012, 6, 14), mat(0x1a1a1a));
-      put(head, r, side * 0.078, 0.02, 0.2);
+  if (o.acc === 'streamer') {
+    for (const [x, y, c, r] of [[-0.12, 1.3, 0xdc2626, 0.4], [0.1, 1.15, 0x16a34a, -0.5], [0.0, 1.0, 0xf4f4f4, 0.2]]) {
+      const m = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 4, 20), mat(c));
+      m.rotation.set(0.3, 0, r);
+      put(body, m, x, y, 0.13);
     }
+  }
+  if (o.acc === 'cape') put(body, box(0.6, 1.0, 0.04, 0xb91c1c), 0, 0.95, -0.19);
+  if (o.acc === 'chain') {
+    const ch = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.018, 6, 18), mat(0xf5c518));
+    ch.rotation.x = PI / 2 - 0.55;
+    put(body, ch, 0, 1.33, 0.07);
+    put(body, box(0.07, 0.07, 0.02, 0xf5c518), 0, 1.2, 0.17);
+  }
+  const head = put(body, new THREE.Group(), 0, 1.63, 0);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), mat(skin)));
+  if (o.hairStyle !== 'bald') {
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.215, 16, 10, 0, PI * 2, 0, PI * 0.5), mat(o.hair));
+    hair.rotation.x = -0.25;
+    head.add(hair);
+  }
+  for (const side of [-1, 1]) {
+    put(head, box(0.035, 0.035, 0.02, 0x222222), side * 0.075, 0.02, 0.19);
+    put(head, box(0.065, o.beard ? 0.025 : 0.015, 0.02, o.hair), side * 0.075, 0.07, 0.19);
+  }
+  put(head, box(0.04, 0.05, 0.05, 0xe2b48c), 0, -0.03, 0.2);
+  const mouth = put(head, box(0.08, 0.02, 0.02, 0x5a1f1f), 0, -0.095, 0.185);
+  if (o.glasses) {
+    for (const side of [-1, 1]) put(head, new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.012, 6, 14), mat(0x1a1a1a)), side * 0.078, 0.02, 0.2);
     put(head, box(0.05, 0.012, 0.012, 0x1a1a1a), 0, 0.03, 0.2);
   }
-  if (o.mustache) put(head, box(0.15, 0.035, 0.03, o.hair), 0, -0.085, 0.19);
+  if (o.mustache) put(head, box(0.15, 0.035, 0.03, o.hair), 0, -0.065, 0.195);
+  if (o.beard) {
+    // rövid, sűrű szakáll
+    put(head, box(0.28, 0.09, 0.12, o.hair), 0, -0.14, 0.09);
+    put(head, box(0.16, 0.05, 0.1, o.hair), 0, -0.2, 0.1);
+    put(head, box(0.035, 0.13, 0.18, o.hair), -0.185, -0.07, 0.03);
+    put(head, box(0.035, 0.13, 0.18, o.hair), 0.185, -0.07, 0.03);
+    mouth.position.z = 0.212;
+  }
+  if (o.acc === 'patch') {
+    put(head, box(0.07, 0.065, 0.02, 0x111111), -0.075, 0.02, 0.2);
+    const st = put(head, box(0.42, 0.015, 0.012, 0x111111), 0, 0.06, 0.15);
+    st.rotation.z = -0.3;
+  }
   if (o.tie) put(body, box(0.07, 0.3, 0.02, o.tie), 0, 1.24, 0.17);
+  if (o.hat) addHat(head, body, o);
+
+  // számoló kéz (csak Tabának): ujjakkal mutatja, hányadik lebukás
+  let hand = null;
+  if (o.hand) {
+    hand = put(arms[1], new THREE.Group(), 0, -0.6, 0);
+    put(hand, box(0.13, 0.12, 0.06, skin), 0, 0, 0);
+    hand.userData.fingers = [0.045, 0.015, -0.015, -0.045].map((x) => {
+      const f = put(hand, new THREE.Group(), x, -0.06, 0);
+      put(f, box(0.028, 0.12, 0.04, skin), 0, -0.06, 0);
+      return f;
+    });
+    const th = put(hand, new THREE.Group(), 0.075, 0.0, 0);
+    put(th, box(0.03, 0.08, 0.04, skin), 0, -0.04, 0);
+    th.rotation.z = 0.9;
+    hand.visible = false;
+  }
+
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.36, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
   shadow.rotation.x = -PI / 2;
   put(g, shadow, 0, 0.012, 0);
-  g.userData = { body, legs, arms, head };
+  g.userData = { body, legs, arms, head, mouth, hand };
   return g;
 }
 
-function poseHuman(h, mode, t, sit) {
-  const { body, legs, arms, head } = h.userData;
-  let ly = 0, la = [0, 0], aa = [0, 0], hx = 0, hy = 0, by = 0, bz = 0;
+function poseHuman(h, mode, t, sit, count = 0) {
+  const { body, legs, arms, head, mouth, hand } = h.userData;
+  let ly = 0, la = [0, 0], aa = [0, 0], az = [0, 0], hx = 0, hy = 0, by = 0, bz = 0, bx = 0, mo = 1;
   const w = Math.sin(t * 9);
   switch (mode) {
     case 'walk': la = [w * 0.6, -w * 0.6]; aa = [-w * 0.5, w * 0.5]; break;
+    case 'drag': la = [w * 0.6, -w * 0.6]; aa = [-w * 0.4, 0.7]; hy = 0.3; break;
+    case 'dragged': la = [w * 0.3, -w * 0.3]; aa = [-2.0, -2.0]; bx = -0.25; mo = 2.5; break;
     case 'laptop': aa = [-1.05 + Math.sin(t * 17) * 0.06, -1.05 + Math.cos(t * 15) * 0.06]; hx = 0.45; break;
     case 'board': aa = [0, -2.5 + Math.sin(t * 7) * 0.22]; break;
     case 'projector': aa = [0, -2.1 + Math.sin(t * 2) * 0.1]; hx = -0.3; break;
     case 'fix': aa = [-1.3 + Math.sin(t * 8) * 0.2, -1.3 + Math.cos(t * 8) * 0.2]; hx = 0.25; break;
-    case 'lecture': aa = [0, -0.9 + Math.sin(t * 3) * 0.4]; break;
+    case 'lecture': aa = [0, -0.9 + Math.sin(t * 3) * 0.4]; mo = 1 + Math.abs(Math.sin(t * 11)) * 2; break;
     case 'warn': hy = Math.sin(t * 6) * 0.3; aa = [0, -0.4]; break;
     case 'glance': case 'look': aa = [-0.2, -0.2]; hx = -0.05; break;
-    case 'count': aa = [0, -1.55]; by = Math.sin(t * 30) * 0.012; break;
-    case 'stun': aa = [-2.4, -2.4]; hy = Math.sin(t * 14) * 0.35; hx = 0.2; break;
-    case 'stuck': aa = [-2.9 + w * 0.4, -2.9 - w * 0.4]; bz = Math.sin(t * 12) * 0.05; break;
+    case 'count': aa = [0.3, -2.95]; az = [0.25, -0.15]; by = Math.abs(Math.sin(t * 6)) * 0.03; mo = 3; break;
+    case 'yell': aa = [-2.7 + w * 0.35, -2.7 - w * 0.35]; az = [0.3, -0.3]; by = Math.abs(Math.sin(t * 12)) * 0.08; hx = -0.25; mo = 4; break;
+    case 'stun': aa = [-2.4, -2.4]; hy = Math.sin(t * 14) * 0.35; hx = 0.2; mo = 2; break;
+    case 'scared': aa = [-3.0, -3.0]; az = [0.5, -0.5]; by = Math.abs(Math.sin(t * 10)) * 0.25; mo = 4; break;
+    case 'slip': bx = -1.45; ly = 0.18; la = [-0.9 + w * 0.3, -0.5 - w * 0.3]; aa = [-2 + w * 0.6, -2.4 - w * 0.6]; mo = 3; break;
+    case 'stuck': aa = [-2.9 + w * 0.4, -2.9 - w * 0.4]; bz = Math.sin(t * 12) * 0.05; mo = 3; break;
   }
   if (sit) { ly = -0.3; la = [-PI / 2, -PI / 2]; }
   body.position.y = ly + by;
-  body.rotation.z = bz;
+  body.rotation.set(bx, 0, bz);
   legs[0].rotation.x = la[0]; legs[1].rotation.x = la[1];
-  arms[0].rotation.x = aa[0]; arms[1].rotation.x = aa[1];
+  arms[0].rotation.set(aa[0], 0, az[0]); arms[1].rotation.set(aa[1], 0, az[1]);
   head.rotation.x = hx; head.rotation.y = hy;
+  mouth.scale.y = mo;
+  if (hand) {
+    const on = mode === 'count' && count > 0;
+    hand.visible = on;
+    arms[1].userData.fist.visible = !on;
+    hand.scale.setScalar(on ? 1.9 : 1);
+    if (on) hand.userData.fingers.forEach((f, i) => { f.scale.y = i < count ? 1 : 0.3; });
+  }
+}
+
+// ---- Taba PPT-je (a kapott diák stílusában: barna keret, fehér dia, aláhúzott cím) ----
+const BLUE = '#1d6fd1', BROWN = '#7a4a22', GREEN = '#16a34a';
+const SLIDES = [
+  { title: 'Akik a „vérükkel adóznak”: a harcosok', pic: 'knight', lines: [
+    [['Vezetés és védelem: „'], ['harcosok', BLUE], ['”']],
+    [['('], ['bellatores', BLUE], [') → lovagok']],
+    [['✔ ', BROWN], ['a nemesség látja el, mert…']],
+    [['   • van fegyverzet, páncél']],
+    [['   • nem kell dolgozniuk']],
+    [['✔ ', BROWN], ['adómentesség, szabadság']],
+  ] },
+  { title: 'A király uralma – a monarchia', pic: 'king', lines: [
+    [['✔ ', BROWN], ['a hierarchia itt is érvényesül']],
+    [['✔ ', BROWN], ['a hatalom istentől ered']],
+    [['   („Isten kegyelméből”)']],
+    [['✔ ', BROWN], ['az uralkodói hatalom öröklődik']],
+    [['   • '], ['monarchia', BLUE], [' = „monosz” + „arkhé”']],
+    [['   • egyszemélyi uralkodói hatalom']],
+  ] },
+  { quote: ['Az Úr születésének ezen a szent napján, mikor a', 'király mise közben Szent Péter apostol sírja előtt', 'elmondott imádsága után felemelkedett, Leó pápa', 'megkoronázta, a római nép pedig ezt kiáltotta:', '„Éljen és győzedelmeskedjék Carolus Augustus,', 'az Isten által megkoronázott nagy, békét teremtő', 'császár!”'], src: '(Nagy Károly császárrá koronázása – Annales Regni Francorum)' },
+  { title: 'A király és a hűbéri lánc: a feudalizmus rendszere', lines: [
+    [['1., az uralkodó örökíthető hűbérbirtokot ('], ['feudum', BLUE], [') adományoz']],
+    [['     egy hívének ('], ['9-10.', GREEN], [' sz-tól örökölhető)']],
+    [['   • szolgálat a királynak → adománybirtok']],
+    [['   • cserébe: hűségeskü + további szolgálatok']],
+    [['2., ha a birtok mérete lehetővé tette: nemes hűbérúr']],
+    [['     ('], ['senior', BLUE], [') → hűbéres ('], ['vazallus', BLUE], [')']],
+  ] },
+];
+function drawSlide(g, i) {
+  const S = SLIDES[i];
+  g.fillStyle = '#5b3a22'; g.fillRect(0, 0, 384, 256);
+  g.fillStyle = 'rgba(0,0,0,.18)';
+  for (let y = 0; y < 256; y += 7) g.fillRect(0, y, 384, 2);
+  g.fillStyle = '#111'; g.fillRect(0, 0, 384, 8);
+  g.fillStyle = '#fff';
+  g.beginPath(); g.roundRect ? g.roundRect(10, 16, 364, 228, 8) : g.rect(10, 16, 364, 228); g.fill();
+  g.textAlign = 'left';
+  if (S.quote) {
+    g.fillStyle = '#d9d6cf'; g.fillRect(20, 30, 344, 120);
+    g.fillStyle = '#333'; g.font = '9.5px sans-serif';
+    S.quote.forEach((l, k) => g.fillText(l, 26, 46 + k * 13.5));
+    g.font = 'italic 8.5px sans-serif'; g.textAlign = 'right';
+    g.fillText(S.src, 358, 142);
+    return;
+  }
+  const wide = !S.pic;
+  g.fillStyle = '#111'; g.font = (wide ? '13px' : '12px') + ' Arial, sans-serif';
+  g.fillText(S.title, 24, 40);
+  const tw = g.measureText(S.title).width;
+  g.fillRect(24, 43, tw, 1.2);
+  g.font = (wide ? '10.5px' : '11.5px') + ' Arial, sans-serif';
+  S.lines.forEach((segs, k) => {
+    let x = 24;
+    const y = 66 + k * (wide ? 26 : 25);
+    for (const [txt, col] of segs) { g.fillStyle = col || '#111'; g.fillText(txt, x, y); x += g.measureText(txt).width; }
+  });
+  if (S.pic === 'knight') {
+    g.fillStyle = '#2f3a2a'; g.fillRect(262, 28, 100, 200);
+    g.fillStyle = '#9aa3ab'; g.fillRect(292, 70, 40, 70); g.fillRect(296, 140, 14, 70); g.fillRect(314, 140, 14, 70);
+    g.fillStyle = '#b8c0c8'; g.beginPath(); g.arc(312, 58, 16, 0, 7); g.fill();
+    g.fillStyle = '#222'; g.fillRect(302, 56, 20, 3);
+    g.fillStyle = '#d4d8dc'; g.fillRect(283, 40, 4, 120); g.fillRect(276, 140, 18, 4);
+  } else if (S.pic === 'king') {
+    g.fillStyle = '#1d3fa8'; g.fillRect(262, 28, 100, 200);
+    g.fillStyle = '#f5c518';
+    for (let y = 36; y < 220; y += 16) for (let x = 268 + ((y / 16) % 2) * 8; x < 360; x += 16) g.fillRect(x, y, 3, 3);
+    g.fillStyle = '#e8e4f5'; g.beginPath(); g.moveTo(290, 220); g.lineTo(312, 120); g.lineTo(334, 220); g.fill();
+    g.fillStyle = '#f0c8a0'; g.beginPath(); g.arc(312, 112, 10, 0, 7); g.fill();
+    g.fillStyle = '#f5c518'; g.fillRect(302, 96, 20, 7);
+  }
 }
 
 // ---- tárgyak ------------------------------------------------------------
@@ -157,6 +392,43 @@ export function makeItem(type) {
       const s = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.14), new THREE.MeshBasicMaterial({ color: 0x3ddc84 }));
       s.rotation.x = -PI / 2;
       put(g, s, 0, 0.017, 0);
+      break;
+    }
+    case 'megaphone': {
+      const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.04, 0.3, 14, 1, true), mat(0xf5f5f5, { side: THREE.DoubleSide }));
+      horn.rotation.x = PI / 2;
+      put(g, horn, 0, 0.12, 0.05);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.015, 6, 16), mat(0xe11d48));
+      put(g, rim, 0, 0.12, 0.2);
+      put(g, new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.1, 10), mat(0xe11d48)), 0, 0.12, -0.13).rotation.x = PI / 2;
+      put(g, box(0.035, 0.12, 0.04, 0x222222), 0, 0.04, -0.08);
+      break;
+    }
+    case 'usb':
+      put(g, box(0.05, 0.016, 0.1, 0xdc2626), 0, 0.008, 0);
+      put(g, box(0.035, 0.012, 0.035, 0xbfc5cc), 0, 0.008, 0.065);
+      put(g, box(0.02, 0.004, 0.02, 0xffffff), 0, 0.018, -0.01);
+      break;
+    case 'banana': {
+      const b = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.028, 6, 12, PI * 0.85), mat(0xf7d038));
+      b.rotation.x = -PI / 2;
+      put(g, b, 0, 0.03, 0);
+      for (const a of [-0.6, 0, 0.6]) {
+        const f = put(g, box(0.035, 0.008, 0.09, 0xe7c02a), Math.cos(PI * 0.85) * 0.1 - 0.03, 0.01, -Math.sin(PI * 0.85) * 0.1);
+        f.rotation.y = a;
+      }
+      put(g, box(0.02, 0.02, 0.03, 0x5a3b12), 0.1, 0.03, 0);
+      break;
+    }
+    case 'snake': {
+      const pts = [];
+      for (let i = 0; i <= 12; i++) pts.push(new THREE.Vector3(Math.sin(i * 0.9) * 0.07, 0.025, -0.2 + i * 0.035));
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.022, 6), mat(0x2f9e44));
+      g.add(tube);
+      const hd = put(g, new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), mat(0x2f9e44)), pts[12].x, 0.03, pts[12].z + 0.02);
+      hd.scale.set(1, 0.7, 1.4);
+      for (const s of [-1, 1]) put(g, box(0.012, 0.012, 0.012, 0xffe14d), pts[12].x + s * 0.02, 0.05, pts[12].z + 0.04);
+      put(g, box(0.006, 0.004, 0.05, 0xe11d48), pts[12].x, 0.025, pts[12].z + 0.08);
       break;
     }
     case 'plane': {
@@ -245,7 +517,22 @@ export class World {
     wall(W, 0, ROOM.z0, 0);
     wall(W, 0, ROOM.z1, PI);
     wall(D, ROOM.x0, 0, PI / 2);
-    wall(D, ROOM.x1, 0, -PI / 2);
+    // jobb fal: ajtónyílás a mosdó felé
+    const seg = (z0, z1, ry, x, dado = true, c = wallC, dc = dadoC) => {
+      const w = z1 - z0, zc = (z0 + z1) / 2;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, H), mat(c));
+      m.position.set(x, H / 2, zc); m.rotation.y = ry; S.add(m);
+      if (dado) {
+        const d = new THREE.Mesh(new THREE.PlaneGeometry(w, dc === dadoC ? 0.95 : 1.4), mat(dc));
+        d.position.set(x, dc === dadoC ? 0.475 : 0.7, zc); d.rotation.y = ry; d.translateZ(0.004); S.add(d);
+      }
+    };
+    const dz0 = DOOR.z - DOOR.half, dz1 = DOOR.z + DOOR.half;
+    seg(ROOM.z0, dz0, -PI / 2, ROOM.x1);
+    seg(dz1, ROOM.z1, -PI / 2, ROOM.x1);
+    const lint = new THREE.Mesh(new THREE.PlaneGeometry(dz1 - dz0, H - 2.2), mat(wallC));
+    lint.position.set(ROOM.x1, 2.2 + (H - 2.2) / 2, DOOR.z); lint.rotation.y = -PI / 2; S.add(lint);
+    this.buildWC(seg);
 
     // mennyezeti lámpák
     this.lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -302,10 +589,20 @@ export class World {
     });
 
     // ajtó + villanykapcsoló (jobb fal)
-    put(S, box(0.06, 2.1, 1.0, 0x8a5a2b), ROOM.x1 - 0.03, 1.05, P.door.z);
-    put(S, box(0.08, 2.2, 0.08, 0x5e3c1c), ROOM.x1 - 0.04, 1.1, P.door.z - 0.54);
-    put(S, box(0.08, 2.2, 0.08, 0x5e3c1c), ROOM.x1 - 0.04, 1.1, P.door.z + 0.54);
-    put(S, box(0.1, 0.05, 0.14, 0xd9c36a), ROOM.x1 - 0.09, 1.05, P.door.z + 0.36);
+    for (const zz of [DOOR.z - DOOR.half - 0.04, DOOR.z + DOOR.half + 0.04]) put(S, box(0.16, 2.24, 0.08, 0x5e3c1c), ROOM.x1, 1.12, zz);
+    put(S, box(0.16, 0.08, 2 * DOOR.half + 0.16, 0x5e3c1c), ROOM.x1, 2.24, DOOR.z);
+    this.door = put(S, new THREE.Group(), ROOM.x1, 0, DOOR.z + DOOR.half);
+    put(this.door, box(0.05, 2.18, 2 * DOOR.half, 0x8a5a2b), 0, 1.09, -DOOR.half);
+    put(this.door, box(0.14, 0.05, 0.12, 0xd9c36a), 0, 1.05, -2 * DOOR.half + 0.14);
+    put(this.door, box(0.06, 0.4, 0.5, 0x9b6a3a), -0.03, 1.6, -DOOR.half);
+    const sign = canvasTex(256, 96, (g, w, h) => {
+      g.fillStyle = '#1d4ed8'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#fff'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('🚻 MOSDÓ', w / 2, h / 2 + 2);
+    });
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.28), new THREE.MeshBasicMaterial({ map: sign }));
+    sg.rotation.y = -PI / 2; sg.position.set(ROOM.x1 - 0.02, 2.55, DOOR.z); S.add(sg);
+    this.doorOpen = 0;
     put(S, box(0.02, 0.16, 0.12, 0xffffff), ROOM.x1 - 0.012, P.switch.y, P.switch.z);
     this.rocker = put(S, box(0.03, 0.08, 0.05, 0xdedede), ROOM.x1 - 0.03, P.switch.y, P.switch.z);
 
@@ -332,7 +629,7 @@ export class World {
 
     // vetítővászon + projektor
     put(S, box(P.screen.w + 0.14, 0.1, 0.1, 0xdadada), P.screen.x, P.screen.y + P.screen.h / 2 + 0.05, ROOM.z0 + 0.06);
-    this.screenTex = canvasTex(384, 256, () => {});
+    this.screenTex = canvasTex(768, 512, () => {});
     const sm = new THREE.Mesh(new THREE.PlaneGeometry(P.screen.w, P.screen.h), new THREE.MeshBasicMaterial({ map: this.screenTex }));
     sm.position.set(P.screen.x, P.screen.y, ROOM.z0 + 0.05); S.add(sm);
     this.projector = new THREE.Group();
@@ -374,6 +671,13 @@ export class World {
     this.trap = { cushion: makeItem('cushion'), glue: box(0.3, 0.012, 0.28, 0xfff7c2, { transparent: true, opacity: 0.8 }) };
     put(S, this.trap.cushion, P.chair.x, 0.54, P.chair.z + 0.02);
     put(S, this.trap.glue, P.chair.x, 0.545, P.chair.z + 0.02);
+    this.trap.snake = put(S, makeItem('snake'), P.snake.x, P.snake.y - 0.01, P.snake.z);
+    this.trap.snake.rotation.y = 2.2;
+    this.usbStick = put(S, makeItem('usb'), P.laptop.x + 0.2, P.laptop.y + 0.005, P.laptop.z + 0.02);
+    this.usbStick.rotation.y = PI / 2;
+    this.hdmi = put(S, new THREE.Group(), P.laptop.x - 0.19, P.laptop.y + 0.01, P.laptop.z);
+    put(this.hdmi, box(0.03, 0.02, 0.05, 0x111111), 0, 0, 0);
+    put(this.hdmi, box(0.015, 0.015, 0.5, 0x222222), 0, 0, -0.27);
 
     // diákpadok
     const topC = 0xe3c48d, legC = 0x5d6670, seatC = 0x3f7fbf;
@@ -470,8 +774,61 @@ export class World {
     S.add(this.cloud);
   }
 
+  buildWC(seg) {
+    const S = this.scene, H = ROOM.h;
+    const cx = (WC.x0 + WC.x1) / 2, cz = (WC.z0 + WC.z1) / 2, w = WC.x1 - WC.x0, d = WC.z1 - WC.z0;
+    const tile = canvasTex(128, 128, (g) => {
+      g.fillStyle = '#e8edf2'; g.fillRect(0, 0, 128, 128);
+      g.fillStyle = '#c3ccd6';
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) g.fillRect(x * 32, y * 32, 32, 32);
+    });
+    tile.wrapS = tile.wrapT = THREE.RepeatWrapping; tile.repeat.set(w, d);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: tile }));
+    fl.rotation.x = -PI / 2; fl.position.set(cx, 0.001, cz); S.add(fl);
+    const ce = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat(0xf6f4ee));
+    ce.rotation.x = PI / 2; ce.position.set(cx, H, cz); S.add(ce);
+    const wc = 0xdbeaf2, dc = 0x8fc3d9;
+    const dz0 = DOOR.z - DOOR.half, dz1 = DOOR.z + DOOR.half;
+    // nyugati fal (az osztály felőli oldal)
+    seg(WC.z0, dz0, PI / 2, WC.x0 + 0.001, true, wc, dc);
+    seg(dz1, WC.z1, PI / 2, WC.x0 + 0.001, true, wc, dc);
+    const lint = new THREE.Mesh(new THREE.PlaneGeometry(dz1 - dz0, H - 2.2), mat(wc));
+    lint.position.set(WC.x0 + 0.001, 2.2 + (H - 2.2) / 2, DOOR.z); lint.rotation.y = PI / 2; S.add(lint);
+    seg(WC.z0, WC.z1, -PI / 2, WC.x1, true, wc, dc);
+    const wallZ = (z, ry) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, H), mat(wc));
+      m.position.set(cx, H / 2, z); m.rotation.y = ry; S.add(m);
+      const t = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.4), mat(dc));
+      t.position.set(cx, 0.7, z); t.rotation.y = ry; t.translateZ(0.004); S.add(t);
+    };
+    wallZ(WC.z0, 0);
+    wallZ(WC.z1, PI);
+    put(S, box(1.2, 0.05, 0.35, 0xd8d8d8), cx, H - 0.03, cz);
+    put(S, new THREE.Mesh(boxGeo(1.1, 0.02, 0.26), this.lampMat), cx, H - 0.065, cz);
+    // mosdókagyló + tükör
+    const sk = P.sink;
+    put(S, box(0.9, 0.82, 0.5, 0xf2f2f2), sk.x, 0.41, sk.z);
+    put(S, box(0.6, 0.05, 0.36, 0xd7e3ea), sk.x - 0.1, 0.84, sk.z + 0.04);
+    put(S, box(0.04, 0.16, 0.04, 0xbfc5cc), sk.x - 0.1, 0.92, sk.z - 0.15);
+    put(S, box(0.04, 0.04, 0.12, 0xbfc5cc), sk.x - 0.1, 0.99, sk.z - 0.1);
+    const mir = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.75), new THREE.MeshBasicMaterial({ color: 0xbcd6e4 }));
+    mir.position.set(sk.x, 1.55, WC.z0 + 0.01); S.add(mir);
+    put(S, box(0.95, 0.85, 0.02, 0x9aa5b1), sk.x, 1.55, WC.z0 + 0.002);
+    // vécéfülkék
+    for (const z of [-4.85, -3.72]) put(S, box(1.4, 1.85, 0.04, 0x5b8db8), 8.5, 1.05, z);
+    put(S, box(0.04, 1.85, 0.5, 0x5b8db8), 7.8, 1.05, -2.85);
+    for (const z of P.stalls) {
+      put(S, new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, 0.4, 14), mat(0xffffff)), 8.85, 0.2, z);
+      const seat = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.035, 6, 16), mat(0xf4f4f4));
+      seat.rotation.x = PI / 2; put(S, seat, 8.85, 0.42, z);
+      put(S, box(0.2, 0.42, 0.42, 0xffffff), 9.08, 0.62, z);
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.1, 10), mat(0xffffff));
+      roll.rotation.x = PI / 2; put(S, roll, 9.12, 0.75, z + 0.32);
+    }
+  }
+
   buildTaba() {
-    this.taba = makeHuman({ shirt: 0xdfe6ee, sleeve: 0xdfe6ee, vest: 0x7a2e3a, pants: 0x2b2f3a, hair: 0x5a5148, glasses: true, mustache: true, tie: 0x1f3a6b });
+    this.taba = makeHuman({ ...TABA_LOOK, sleeve: TABA_LOOK.shirt, hand: true });
     this.scene.add(this.taba);
     this.tabaYaw = 0;
     this.coneMat = new THREE.MeshBasicMaterial({ color: 0x35d07f, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
@@ -508,7 +865,7 @@ export class World {
     g.fillStyle = '#1f5a3d'; g.fillRect(0, 0, c.width, c.height);
     g.fillStyle = 'rgba(255,255,255,.05)';
     for (let i = 0; i < 14; i++) g.fillRect((i * 97) % 500, (i * 41) % 180, 60, 5);
-    const lines = ['Törióra – A mohácsi csata', '1526. augusztus 29.', 'II. Lajos  †  Csele-patak', '1541 – Buda eleste', 'Három részre szakadt ország', 'HF: tk. 112–118. oldal'];
+    const lines = ['Törióra – A feudalizmus', 'harcosok = bellatores', 'monarchia: monosz + arkhé', '800: Nagy Károly császár', 'hűbérúr ⇄ hűbéres (vazallus)', 'HF: feudum fogalma!'];
     const n = Math.round(s.board * lines.length);
     g.fillStyle = 'rgba(255,255,255,.92)'; g.textAlign = 'left';
     for (let i = 0; i < n; i++) {
@@ -530,17 +887,12 @@ export class World {
   }
 
   drawScreen(st, t) {
-    const { g, c } = this.screenTex.userData;
-    const w = c.width, h = c.height;
+    const { g } = this.screenTex.userData;
+    g.setTransform(2, 0, 0, 2, 0, 0);
+    const w = 384, h = 256;
+    g.textBaseline = 'alphabetic';
     if (st === 'on') {
-      g.fillStyle = '#fdfdf6'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#7b2d26'; g.fillRect(0, 0, w, 54);
-      g.fillStyle = '#fff'; g.font = 'bold 26px sans-serif'; g.textAlign = 'left';
-      g.fillText('A mohácsi csata (1526)', 16, 36);
-      g.fillStyle = '#333'; g.font = '19px sans-serif';
-      ['• II. Lajos serege: kb. 25 000 fő', '• I. Szulejmán: kb. 60 000 fő', '• A csata 2 óra alatt eldőlt', '• Következmény: kettős', '   királyválasztás'].forEach((l, i) => g.fillText(l, 18, 92 + i * 30));
-      g.fillStyle = '#d8b46a'; g.fillRect(300, 170, 64, 64);
-      g.fillStyle = '#7b2d26'; g.font = '34px sans-serif'; g.fillText('⚔', 314, 214);
+      drawSlide(g, Math.floor(t / 9) % SLIDES.length);
     } else if (st === 'meme') {
       g.fillStyle = '#ffd1e8'; g.fillRect(0, 0, w, h);
       const b = Math.sin(t * 8) * 6;
@@ -557,12 +909,37 @@ export class World {
       g.fillStyle = '#c2185b'; g.font = 'bold 30px sans-serif'; g.textAlign = 'center';
       g.fillText('MIAÚ MIAÚ MIAÚ', 192, 40);
       g.font = 'bold 20px sans-serif'; g.fillText('▶ Vicces cicák 10 órán át', 192, 240);
+    } else if (st === 'hack') {
+      const f = Math.floor(t * 6);
+      g.fillStyle = `hsl(${(f * 40) % 360},85%,62%)`; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 6; g.textAlign = 'center';
+      g.font = 'bold 22px Impact, sans-serif';
+      g.strokeText('AMIKOR TÖRIÓRA VAN', w / 2, 46); g.fillText('AMIKOR TÖRIÓRA VAN', w / 2, 46);
+      g.strokeText('DE TE MÁR A SZÜNETRE GONDOLSZ', w / 2, 238); g.fillText('DE TE MÁR A SZÜNETRE GONDOLSZ', w / 2, 238);
+      const b = Math.sin(t * 10) * 10;
+      g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(w / 2, 136 + b, 52, 0, 7); g.fill();
+      g.fillStyle = '#222'; g.beginPath(); g.arc(w / 2 - 18, 124 + b, 7, 0, 7); g.arc(w / 2 + 18, 124 + b, 7, 0, 7); g.fill();
+      g.strokeStyle = '#222'; g.lineWidth = 5; g.beginPath(); g.arc(w / 2, 140 + b, 26, 0.15, PI - 0.15); g.stroke();
+      g.font = '40px sans-serif'; g.fillText('😂', 60, 150 - b); g.fillText('🔥', w - 60, 150 + b);
+    } else if (st === 'nosignal') {
+      g.fillStyle = '#1e3a8a'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#fff'; g.font = 'bold 26px sans-serif'; g.textAlign = 'center';
+      g.fillText('NINCS JEL', w / 2, h / 2 - 6);
+      g.font = '16px sans-serif'; g.fillText('HDMI 1 – Ellenőrizze a kábelt', w / 2, h / 2 + 22);
     } else if (st === 'broken') {
       g.fillStyle = '#1a1d22'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#39424d'; g.font = 'bold 24px sans-serif'; g.textAlign = 'center';
       g.fillText('NINCS JEL', w / 2, h / 2);
     } else {
       g.fillStyle = '#c9ccd0'; g.fillRect(0, 0, w, h);
+    }
+    if (this.torn) {
+      g.fillStyle = '#2a2a2a';
+      for (const [x, y, r] of [[120, 90, 30], [250, 160, 38], [180, 210, 22], [300, 60, 18]]) {
+        g.beginPath();
+        for (let i = 0; i < 9; i++) { const a = (i / 9) * PI * 2, rr = r * (0.6 + ((i * 37) % 10) / 15); g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+        g.fill();
+      }
     }
     this.screenTex.needsUpdate = true;
   }
@@ -580,12 +957,24 @@ export class World {
     this.cone.scale.setScalar(Math.max(0.01, this.coneRange));
   }
 
+  // bolt: a kiválasztott skin bemutatása a tábla előtt
+  setPreview(skinId) {
+    if (this.previewKey === skinId) return;
+    this.previewKey = skinId;
+    if (this.preview) { this.scene.remove(this.preview); this.preview = null; }
+    if (!skinId) return;
+    this.preview = makeHuman(studentLook(skinId, 0));
+    this.preview.position.set(0, 0, -3.3);
+    this.scene.add(this.preview);
+  }
+
   avatar(id, p) {
     let a = this.avatars.get(id);
+    const key = (p.skin || 'alap') + '|' + p.seat;
+    if (a && a.userData.key !== key) { this.scene.remove(a); this.avatars.delete(id); a = null; }
     if (!a) {
-      const col = PLAYER_COLORS[p.seat % PLAYER_COLORS.length];
-      const hairs = [0x3b2a1a, 0x111111, 0xc79a3a, 0x7a4a22, 0x9a3b1a];
-      a = makeHuman({ shirt: col, pants: 0x34495e, hair: hairs[p.seat % hairs.length] });
+      a = makeHuman(studentLook(p.skin, p.seat));
+      a.userData.key = key;
       a.scale.setScalar(0.9);
       a.userData.x = p.x; a.userData.z = p.z; a.userData.yaw = p.yaw; a.userData.sp = 0;
       this.scene.add(a);
@@ -617,16 +1006,21 @@ export class World {
       s.lockers.forEach((o, i) => { const d = this.lockerDoors[i]; d.rotation.y += ((o ? 1.9 : 0) - d.rotation.y) * k; });
       this.trap.cushion.visible = s.chairTrap === 'cushion';
       this.trap.glue.visible = s.chairTrap === 'glue';
+      this.trap.snake.visible = s.deskTrap === 'snake';
+      this.usbStick.visible = !!s.usb && s.laptop === 'desk';
+      this.hdmi.position.set(P.laptop.x - (s.hdmi ? 0.19 : 0.3), s.hdmi ? P.laptop.y + 0.01 : 0.3, P.laptop.z);
+      this.hdmi.rotation.x = s.hdmi ? 0 : -1.2;
       this.clock.visible = s.clock;
       this.clockHand.rotation.z = -(1 - s.t / 300) * PI * 2;
       this.globe.visible = s.globe;
       this.plant.rotation.z += ((s.plant ? 0 : 1.45) - this.plant.rotation.z) * k;
 
       const ps = projState(s);
-      this.beam.visible = ps === 'on' || ps === 'meme';
+      this.beam.visible = ps === 'on' || ps === 'meme' || ps === 'hack' || ps === 'nosignal';
+      this.torn = !!s.screenTorn;
       this.projector.rotation.z = s.proj === 'broken' ? 0.5 : 0;
       this.projector.rotation.x = s.proj === 'broken' ? 0.3 : 0;
-      const sk = ps + (ps === 'meme' ? Math.floor(t * 12) : '');
+      const sk = ps + (ps === 'meme' || ps === 'hack' ? Math.floor(t * 12) : ps === 'on' ? Math.floor(t / 9) : '') + this.torn;
       if (sk !== this.keys.screen) { this.keys.screen = sk; this.drawScreen(ps, t); }
       const bk = Math.round(s.board * 6) + '|' + s.doodle;
       if (bk !== this.keys.board) { this.keys.board = bk; this.drawBoard(s); }
@@ -674,7 +1068,7 @@ export class World {
           u.ring.scale.setScalar(1 + Math.sin(t * 4 + it.id) * 0.12);
           u.model.position.y = it.type === 'laptop' || it.placed ? 0 : 0.03 + Math.sin(t * 2.5 + it.id) * 0.02;
           m.rotation.y = it.type === 'laptop' ? 0 : it.ringing ? Math.sin(t * 40) * 0.25 : it.id * 1.7;
-          if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : 0x7fc8ff);
+          if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : s.usb ? 0xff4fd8 : 0x7fc8ff);
         }
       }
       for (const [id, m] of this.itemMeshes) if (!s.items[id]) { this.scene.remove(m); this.itemMeshes.delete(id); }
@@ -690,7 +1084,7 @@ export class World {
     tg.position.z += (T.z - tg.position.z) * k;
     this.tabaYaw = lerpAngle(this.tabaYaw, T.yaw, 1 - Math.exp(-dt * 16));
     tg.rotation.y = this.tabaYaw;
-    poseHuman(tg, T.st, t, T.sit);
+    poseHuman(tg, T.st, t, T.sit, T.count || 0);
     this.cone.position.x = tg.position.x; this.cone.position.z = tg.position.z;
     this.cone.rotation.y = this.tabaYaw;
     this.setCone(T.fov, s.phase === 'play' ? T.range : 0);
@@ -711,8 +1105,16 @@ export class World {
       a.rotation.y = u.yaw;
       const sp = Math.hypot(a.position.x - px, a.position.z - pz) / Math.max(dt, 1e-3);
       u.sp += (sp - u.sp) * 0.2;
-      poseHuman(a, u.sp > 0.3 ? 'walk' : p.act ? 'fix' : '', t, false);
+      poseHuman(a, p.dragged ? 'dragged' : u.sp > 0.3 ? 'walk' : p.act ? 'fix' : '', t, false);
     }
+    if (this.preview) { this.preview.rotation.y = t * 0.7; poseHuman(this.preview, 'lecture', t, false); }
+
+    // ajtó: kinyílik, ha valaki a közelében van
+    let near = Math.hypot(tg.position.x - DOOR.x, tg.position.z - DOOR.z) < 1.7;
+    if (me && Math.hypot(me.x - DOOR.x, me.z - DOOR.z) < 1.7) near = true;
+    for (const a of this.avatars.values()) if (Math.hypot(a.position.x - DOOR.x, a.position.z - DOOR.z) < 1.7) near = true;
+    this.doorOpen += ((near ? 1 : 0) - this.doorOpen) * (1 - Math.exp(-dt * 7));
+    this.door.rotation.y = -1.45 * this.doorOpen;
     for (const [id, a] of this.avatars) if (!s.players[id] || id === meId) { this.scene.remove(a); this.avatars.delete(id); }
 
     // kamera
@@ -761,6 +1163,20 @@ export class World {
       m.position.set(...ev.from);
       m.lookAt(...ev.to);
       this.fx.push({ obj: m, t: 0, dur: Math.max(0.2, len(ev.from, ev.to) / 9), step: (u) => lerp3(m, ev.from, ev.to, u, 0.25) });
+    } else if (ev.e === 'mega') {
+      for (let i = 0; i < 4; i++) {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.04, 6, 32), new THREE.MeshBasicMaterial({ color: 0xffd84d, transparent: true, opacity: 0.8, depthWrite: false }));
+        m.position.set(ev.x + Math.sin(ev.yaw) * 0.6, 1.5, ev.z + Math.cos(ev.yaw) * 0.6);
+        m.rotation.y = ev.yaw;
+        S.add(m);
+        this.fx.push({ obj: m, t: -i * 0.15, dur: 0.9, step: (u) => {
+          if (u < 0) { m.visible = false; return; }
+          m.visible = true;
+          m.scale.setScalar(0.4 + u * 3.5);
+          m.position.set(ev.x + Math.sin(ev.yaw) * (0.6 + u * 2.5), 1.5, ev.z + Math.cos(ev.yaw) * (0.6 + u * 2.5));
+          m.material.opacity = 0.8 * (1 - u);
+        } });
+      }
     } else if (ev.e === 'lob') {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshBasicMaterial({ color: ev.c || 0x6fd13f }));
       S.add(m);

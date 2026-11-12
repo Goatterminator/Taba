@@ -65,6 +65,7 @@
         <input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="KÓD">
         <button id="btnJoin" class="btn">Csatlakozás</button>
       </div>
+      <button id="btnShop" class="btn shopBtn">🛒 Bolt – skinek <span class="coins">🪙 <b id="menuCoins">0</b></span></button>
       <p id="menuMsg" class="msg" hidden></p>
       <div class="row small">
         <button id="btnHelp" class="link">Hogyan kell játszani?</button>
@@ -104,6 +105,19 @@
     </div>
   </div>
 
+  <!-- Bolt -->
+  <div id="shop" class="screen shopScreen" hidden>
+    <div class="card shopCard">
+      <div class="shopHead"><h2>Bolt</h2><div class="coins">🪙 <b id="shopCoins">0</b></div></div>
+      <div id="skinGrid"></div>
+      <div class="row">
+        <button id="btnShopClose" class="btn">Vissza</button>
+        <button id="btnShopBuy" class="btn primary">Megveszem</button>
+      </div>
+      <p class="tiny">Érmét minden óra végén kapsz – minél jobban szívattál, annál többet. Győzelemért extra jár!</p>
+    </div>
+  </div>
+
   <!-- Súgó -->
   <div id="help" class="screen" hidden>
     <div class="card wide">
@@ -111,7 +125,11 @@
       <ul class="help">
         <li><b>Cél:</b> töltsétek fel a <b>SZÍVATÁS</b>-mérőt 100%-ra, mielőtt lejár az 5 perces óra.</li>
         <li><b>Taba</b> tanár úr sokszor el van foglalva (laptop, projektor, tábla) – ilyenkor nem lát. A padlón látszik, merre néz: a <span class="c-g">zöld</span> kúp rövidlátó, a <span class="c-o">narancs</span> mindent lát.</li>
-        <li>Ha szabotálás közben (vagy laptoppal / AK-val a kezedben) meglát: <b>EGY… KETTŐ… HÁROM</b> – a harmadiknál mindenki veszít.</li>
+        <li>Ha szabotálás közben (vagy laptoppal / AK-val / megafonnal a kezedben) meglát: <b>EGY… KETTŐ… HÁROM</b> – az ujjain mutatja. A harmadiknál mindenki veszít.</li>
+        <li><b>Mosdó:</b> az ajtón kimenve a mosdóba jutsz. Ott nem lehet szabotálni, de ha <b>20 mp-nél tovább</b> maradsz, Taba utánad jön – addig a többiek szabadon szívathatnak. Ha a mosdóban elkap, visszavonszol, és kapsz egy lebukást.</li>
+        <li>Taba a <b>laptopjáról</b> vetíti a PPT-t: húzd ki a HDMI-t, dugj bele <b>mémes pendrive</b>-ot, kapcsold át a távirányítóval, vagy lődd szét a projektort / vásznat.</li>
+        <li><b>Megafon:</b> óriási zaj – Taba ordibálni kezd, aztán odanéz, honnan jött. <b>Banánhéj:</b> tedd az útjába. <b>Gumikígyó:</b> az asztalára.</li>
+        <li><b>Bolt:</b> az óra végén érméket kapsz, ezekből skineket vehetsz a karakterednek.</li>
         <li>Kapcsold le a villanyt, húzd ki a projektort, töröld le a táblát, lopd el a laptopját (és dobd ki az ablakon), tegyél pukipárnát a székére…</li>
         <li>A szekrényekben és a padokon <b>tárgyak</b> vannak: bűzbomba, távirányító, csörgő telefon, ragasztó – és valahol egy <b>szivacslövő AK</b>. Lődd szét a termet, de ha <b>Tabát eltalálod, azonnal vége</b>.</li>
         <li><b>Telefon:</b> bal oldalt mozgás, jobb oldalt nézelődés, gombok jobbra lent. <b>Gép:</b> WASD + egér, <kbd>E</kbd> akció (tartsd), <kbd>F</kbd>/kattintás tárgy használata, <kbd>Q</kbd> eldobás.</li>

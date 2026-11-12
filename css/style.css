@@ -124,6 +124,7 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
   font-size: clamp(54px, 15vw, 120px); font-weight: 900; color: var(--red); letter-spacing: 0.04em;
   text-shadow: 0 4px 0 #5a0c0c, 0 0 30px rgba(0, 0, 0, 0.6); animation: slam 1.8s forwards;
 }
+#banner .hand { display: block; width: 0.9em; height: auto; margin: 0 auto -0.08em; filter: drop-shadow(0 4px 0 #5a0c0c); }
 #banner small { display: block; font-size: 0.22em; color: #fff; letter-spacing: 0; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); }
 #prompt {
   position: absolute; left: 50%; bottom: calc(96px + var(--sab)); transform: translateX(-50%);
@@ -183,4 +184,35 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
 @media (prefers-reduced-motion: reduce) {
   #banner, .toast, #strikes i.on, #timer.low { animation-duration: 0.01s; }
   #banner { animation: none; }
+}
+
+/* ---- bolt ---- */
+.shopBtn { width: 100%; margin-top: 10px; display: flex; justify-content: center; gap: 10px; align-items: center; background: rgba(255, 216, 77, 0.14); border-color: var(--yellow); }
+.coins { font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
+.shopScreen { background: linear-gradient(90deg, transparent 35%, rgba(4, 8, 6, 0.6)); justify-items: end; }
+.shopCard { width: min(400px, 100%); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow: auto; text-align: left; }
+.shopHead { display: flex; justify-content: space-between; align-items: center; }
+.shopHead .coins { font-size: 20px; }
+#skinGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 10px; }
+.skin {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 10px; cursor: pointer;
+  background: rgba(0, 0, 0, 0.25); border: 2px solid rgba(244, 241, 230, 0.2); color: var(--chalk); font: inherit;
+}
+.skin .ic { font-size: 22px; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--c); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25); }
+.skin .nm { font-size: 12.5px; font-weight: 700; text-align: center; line-height: 1.15; }
+.skin .pr { font-size: 11.5px; color: var(--yellow); font-variant-numeric: tabular-nums; }
+.skin.eq { border-color: var(--green); }
+.skin.eq .pr { color: var(--green); }
+.skin.sel { border-color: var(--yellow); background: rgba(255, 216, 77, 0.16); }
+.skin.poor:not(.sel) { opacity: 0.6; }
+#endStats { flex-wrap: wrap; gap: 8px 22px; }
+@media (orientation: portrait) {
+  .shopScreen { align-items: end; justify-items: center; background: linear-gradient(180deg, transparent 40%, rgba(4, 8, 6, 0.6)); }
+  .shopCard { max-height: 58vh; max-height: 58dvh; }
+}
+@media (max-height: 420px) {
+  .shopCard { padding: 10px 14px; }
+  #skinGrid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .skin { padding: 5px 3px; }
+  .skin .ic { width: 30px; height: 30px; font-size: 17px; }
 }
