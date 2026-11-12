@@ -13,7 +13,7 @@ export const DOOR = { x: 5, z: -4.6, half: 0.55 };
 export const inWC = (x) => x > ROOM.x1;
 
 // Taba kinézete – itt lehet hangolni (haj, szakáll, ruha)
-// (a kapott fotó alapján: rövid sötét haj, rövid sötét szakáll + bajusz, nincs szemüveg, fekete-fehér kockás ing)
+// (a kapott fotó alapján: rövid sötét haj, rövid sötét szakáll + bajusz, nincs szemüveg; kék póló)
 export const TABA_LOOK = {
   skin: 0xe8b894,
   hair: 0x2b211b,
@@ -21,8 +21,8 @@ export const TABA_LOOK = {
   beard: true,
   mustache: true,
   glasses: false,
-  shirt: 0xf2f2f2,
-  pattern: 'plaid',
+  shirt: 0x2563eb,
+  tshirt: true,
   vest: null,
   tie: null,
   pants: 0x262a33,
@@ -160,7 +160,6 @@ export const ITEMS = {
   laptop: { name: 'Taba laptopja', icon: '💻', hint: 'Rejtsd el: kuka, szekrény, vagy ki az ablakon!', contraband: true },
   ak: { name: 'Szivacslövő AK', icon: '🔫', hint: 'Lődd szét a projektort, vásznat, laptopot – de Tabát NE!', contraband: true, use: 'LŐ' },
   megaphone: { name: 'Megafon', icon: '📢', hint: 'Óriási zaj – Taba kiborul és ordibálni kezd', contraband: true, use: 'ZAJ' },
-  remote: { name: 'Távirányító', icon: '📺', hint: 'Kapcsold át a kivetítőt', use: 'KAPCS' },
   usb: { name: 'Mémes pendrive', icon: '💾', hint: 'Dugd Taba laptopjába – a vásznon mémek jönnek a PPT helyett' },
   chalk: { name: 'Kréta', icon: '🖍️', hint: 'Firkálj vele a táblára' },
   cushion: { name: 'Pukipárna', icon: '🎈', hint: 'Tedd Taba székére' },
@@ -179,7 +178,7 @@ function shuffle(a) {
   }
   return a;
 }
-const AMMO = { ak: 6, remote: 3, megaphone: 3 };
+const AMMO = { ak: 6, megaphone: 3 };
 
 // Tárgyak véletlenszerű elhelyezése az óra elején
 export function makeItems() {
@@ -188,7 +187,7 @@ export function makeItems() {
   add('laptop', P.laptop.x, P.laptop.y, P.laptop.z);
   add('chalk', P.chalkTray.x, P.chalkTray.y, P.chalkTray.z, { home: true });
 
-  const pool = shuffle(['stink', 'glue', 'remote', 'cushion', 'phone', 'megaphone', 'usb', 'banana', 'snake']);
+  const pool = shuffle(['stink', 'glue', 'cushion', 'phone', 'megaphone', 'usb', 'banana', 'snake']);
   const lockerTypes = shuffle(['ak', pool.pop(), pool.pop()]);
   lockerTypes.forEach((t, i) => {
     const L = P.lockers[i];
@@ -224,7 +223,7 @@ export function projState(s) {
   if (s.proj === 'broken') return 'broken';
   if (!s.power || !s.plug) return 'off';
   if (s.laptop !== 'desk' || s.lapBroken || !s.hdmi) return 'nosignal';
-  if (s.proj === 'meme') return 'meme';
+  if (s.drawOn) return 'drawing';
   if (s.usb) return 'hack';
   return 'on';
 }
@@ -260,6 +259,7 @@ export function interactions(s, p) {
     const atDesk = s.laptop === 'desk' && !T.sit && !s.lapBroken;
     if (atDesk && s.hdmi && !(cd.hdmi > 0)) add('hdmi', 'HDMI-kábel kihúzása', { ...P.laptop, x: P.laptop.x - 0.25 }, 1.0, 1.5);
     if (atDesk && ht === 'usb' && !s.usb) add('usb', 'Pendrive a laptopba', P.laptop, 1.5, 1.6);
+    else if (atDesk && !s.drawOn && !(cd.draw > 0)) add('draw', 'Rajzolás a PPT-re', P.laptop, 0.5, 1.6);
     if (ht === 'snake' && !s.deskTrap) add('snake', 'Gumikígyó az asztalra', P.snake, 1.0, 1.6);
   }
   for (const it of s.items) {

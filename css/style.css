@@ -120,11 +120,10 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
 .bubble.angry { background: var(--red); color: #fff; font-size: 17px; }
 .tag { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: rgba(0, 0, 0, 0.55); }
 #banner {
-  position: absolute; left: 0; right: 0; top: 24%; text-align: center; pointer-events: none;
-  font-size: clamp(54px, 15vw, 120px); font-weight: 900; color: var(--red); letter-spacing: 0.04em;
+  position: absolute; left: 0; right: 0; top: 72%; text-align: center; pointer-events: none;
+  font-size: clamp(36px, 9vw, 72px); font-weight: 900; color: var(--red); letter-spacing: 0.04em;
   text-shadow: 0 4px 0 #5a0c0c, 0 0 30px rgba(0, 0, 0, 0.6); animation: slam 1.8s forwards;
 }
-#banner .hand { display: block; width: 0.9em; height: auto; margin: 0 auto -0.08em; filter: drop-shadow(0 4px 0 #5a0c0c); }
 #banner small { display: block; font-size: 0.22em; color: #fff; letter-spacing: 0; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); }
 #prompt {
   position: absolute; left: 50%; bottom: calc(96px + var(--sab)); transform: translateX(-50%);
@@ -216,3 +215,21 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
   .skin { padding: 5px 3px; }
   .skin .ic { width: 30px; height: 30px; font-size: 17px; }
 }
+
+/* ---- rajzolás a laptopon ---- */
+#drawUI {
+  position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: calc(8px + var(--sat)) calc(12px + var(--sar)) calc(8px + var(--sab)) calc(12px + var(--sal));
+  background: rgba(8, 10, 14, 0.82); touch-action: none;
+}
+.drawTop { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.drawHint { font-size: 13px; opacity: 0.85; }
+#drawStatus.caught { background: rgba(200, 30, 30, 0.9); }
+#drawStatus.seen { color: var(--orange); }
+#drawCanvas { background: #fff; border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); touch-action: none; cursor: crosshair; border: 6px solid #5b3a22; }
+.drawBar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.drawBar .btn.small { flex: 0 0 auto; padding: 8px 12px; font-size: 13.5px; }
+.drawBar .btn.on { background: rgba(255, 255, 255, 0.25); }
+#drawColors { display: flex; gap: 5px; }
+#drawColors button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.35); background: var(--c); cursor: pointer; padding: 0; }
+#drawColors button.on { border-color: #fff; transform: scale(1.12); }

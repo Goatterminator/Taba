@@ -147,7 +147,10 @@ export function makeHuman(o) {
     put(hip, box(0.18, 0.09, 0.28, 0x222222), 0, -0.78, 0.04);
     legs.push(hip);
     const sh = put(body, new THREE.Group(), side * 0.33, 1.4, 0);
-    put(sh, shirtBox(0.13, 0.58, 0.14, o.sleeve ?? o.shirt), 0, -0.27, 0);
+    if (o.tshirt) {
+      put(sh, box(0.15, 0.22, 0.16, o.shirt), 0, -0.1, 0);
+      put(sh, box(0.11, 0.4, 0.12, skin), 0, -0.36, 0);
+    } else put(sh, shirtBox(0.13, 0.58, 0.14, o.sleeve ?? o.shirt), 0, -0.27, 0);
     sh.userData.fist = put(sh, box(0.11, 0.11, 0.11, skin), 0, -0.61, 0);
     arms.push(sh);
   }
@@ -207,9 +210,10 @@ export function makeHuman(o) {
   if (o.hand) {
     hand = put(arms[1], new THREE.Group(), 0, -0.6, 0);
     put(hand, box(0.13, 0.12, 0.06, skin), 0, 0, 0);
-    hand.userData.fingers = [0.045, 0.015, -0.015, -0.045].map((x) => {
+    hand.userData.fingers = [0.048, 0.016, -0.016, -0.048].map((x) => {
       const f = put(hand, new THREE.Group(), x, -0.06, 0);
-      put(f, box(0.028, 0.12, 0.04, skin), 0, -0.06, 0);
+      put(f, box(0.024, 0.13, 0.04, skin), 0, -0.065, 0);
+      put(f, box(0.026, 0.02, 0.042, 0xd9a07a), 0, -0.12, 0); // ujjhegy
       return f;
     });
     const th = put(hand, new THREE.Group(), 0.075, 0.0, 0);
@@ -240,7 +244,7 @@ function poseHuman(h, mode, t, sit, count = 0) {
     case 'lecture': aa = [0, -0.9 + Math.sin(t * 3) * 0.4]; mo = 1 + Math.abs(Math.sin(t * 11)) * 2; break;
     case 'warn': hy = Math.sin(t * 6) * 0.3; aa = [0, -0.4]; break;
     case 'glance': case 'look': aa = [-0.2, -0.2]; hx = -0.05; break;
-    case 'count': aa = [0.3, -2.95]; az = [0.25, -0.15]; by = Math.abs(Math.sin(t * 6)) * 0.03; mo = 3; break;
+    case 'count': aa = [-0.9, 0]; az = [0, 2.25]; by = Math.abs(Math.sin(t * 6)) * 0.02; mo = 3; break;
     case 'yell': aa = [-2.7 + w * 0.35, -2.7 - w * 0.35]; az = [0.3, -0.3]; by = Math.abs(Math.sin(t * 12)) * 0.08; hx = -0.25; mo = 4; break;
     case 'stun': aa = [-2.4, -2.4]; hy = Math.sin(t * 14) * 0.35; hx = 0.2; mo = 2; break;
     case 'scared': aa = [-3.0, -3.0]; az = [0.5, -0.5]; by = Math.abs(Math.sin(t * 10)) * 0.25; mo = 4; break;
@@ -258,12 +262,14 @@ function poseHuman(h, mode, t, sit, count = 0) {
     const on = mode === 'count' && count > 0;
     hand.visible = on;
     arms[1].userData.fist.visible = !on;
-    hand.scale.setScalar(on ? 1.9 : 1);
+    hand.scale.setScalar(on ? 2.4 : 1);
+    hand.rotation.z = on ? PI - 2.25 : 0; // ujjak felfelé, a feje mellett
     if (on) hand.userData.fingers.forEach((f, i) => { f.scale.y = i < count ? 1 : 0.3; });
   }
 }
 
 // ---- Taba PPT-je (a kapott diák stílusában: barna keret, fehér dia, aláhúzott cím) ----
+export const DRAW_COLORS = ['#111111', '#e11d48', '#2563eb', '#16a34a', '#f59e0b', '#9333ea'];
 const BLUE = '#1d6fd1', BROWN = '#7a4a22', GREEN = '#16a34a';
 const SLIDES = [
   { title: 'Akik a „vérükkel adóznak”: a harcosok', pic: 'knight', lines: [
@@ -469,6 +475,8 @@ export class World {
     this.buildRoom();
     this.buildTaba();
     this.buildViewModel();
+    this.zoom = 1; this.zoomCur = 1;
+    this.drawings = new Map();
     this.resize();
     addEventListener('resize', () => this.resize());
   }
@@ -477,7 +485,8 @@ export class World {
     const w = innerWidth, h = innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    this.camera.fov = w < h ? 88 : 68;
+    this.baseFov = w < h ? 88 : 68;
+    this.camera.fov = this.baseFov / (this.zoomCur || 1);
     this.camera.updateProjectionMatrix();
     this.w = w; this.h = h;
   }
@@ -893,6 +902,20 @@ export class World {
     g.textBaseline = 'alphabetic';
     if (st === 'on') {
       drawSlide(g, Math.floor(t / 9) % SLIDES.length);
+    } else if (st === 'drawing') {
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+      const strokes = this.drawings.get(this.drawId) || [];
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      for (const st of strokes) {
+        g.strokeStyle = DRAW_COLORS[st.c] || '#111'; g.lineWidth = 1.6 * (st.w || 1);
+        g.beginPath();
+        for (let i = 0; i < st.p.length; i += 2) {
+          const x = (st.p[i] / 255) * w, y = (st.p[i + 1] / 255) * h;
+          if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        }
+        if (st.p.length === 2) g.lineTo((st.p[0] / 255) * w + 0.5, (st.p[1] / 255) * h);
+        g.stroke();
+      }
     } else if (st === 'meme') {
       g.fillStyle = '#ffd1e8'; g.fillRect(0, 0, w, h);
       const b = Math.sin(t * 8) * 6;
@@ -1016,11 +1039,12 @@ export class World {
       this.plant.rotation.z += ((s.plant ? 0 : 1.45) - this.plant.rotation.z) * k;
 
       const ps = projState(s);
-      this.beam.visible = ps === 'on' || ps === 'meme' || ps === 'hack' || ps === 'nosignal';
+      this.beam.visible = ps === 'on' || ps === 'drawing' || ps === 'hack' || ps === 'nosignal';
+      this.drawId = s.drawId;
       this.torn = !!s.screenTorn;
       this.projector.rotation.z = s.proj === 'broken' ? 0.5 : 0;
       this.projector.rotation.x = s.proj === 'broken' ? 0.3 : 0;
-      const sk = ps + (ps === 'meme' || ps === 'hack' ? Math.floor(t * 12) : ps === 'on' ? Math.floor(t / 9) : '') + this.torn;
+      const sk = ps + (ps === 'hack' ? Math.floor(t * 12) : ps === 'on' ? Math.floor(t / 9) : ps === 'drawing' ? s.drawId + '/' + this.drawings.has(s.drawId) : '') + this.torn;
       if (sk !== this.keys.screen) { this.keys.screen = sk; this.drawScreen(ps, t); }
       const bk = Math.round(s.board * 6) + '|' + s.doodle;
       if (bk !== this.keys.board) { this.keys.board = bk; this.drawBoard(s); }
@@ -1068,7 +1092,7 @@ export class World {
           u.ring.scale.setScalar(1 + Math.sin(t * 4 + it.id) * 0.12);
           u.model.position.y = it.type === 'laptop' || it.placed ? 0 : 0.03 + Math.sin(t * 2.5 + it.id) * 0.02;
           m.rotation.y = it.type === 'laptop' ? 0 : it.ringing ? Math.sin(t * 40) * 0.25 : it.id * 1.7;
-          if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : s.usb ? 0xff4fd8 : 0x7fc8ff);
+          if (it.type === 'laptop' && u.model.userData.screen) u.model.userData.screen.material.color.setHex(s.lapBroken ? 0x111111 : s.drawOn ? 0xffffff : s.usb ? 0xff4fd8 : 0x7fc8ff);
         }
       }
       for (const [id, m] of this.itemMeshes) if (!s.items[id]) { this.scene.remove(m); this.itemMeshes.delete(id); }
@@ -1122,6 +1146,10 @@ export class World {
       this.camera.position.set(me.x, EYE + (me.bob || 0), me.z);
       this.camera.rotation.set(me.pitch, me.yaw + PI, 0);
     }
+    // zoom (lebukáskor ráközelítünk Taba kezére)
+    this.zoomCur += (this.zoom - this.zoomCur) * (1 - Math.exp(-dt * 6));
+    const fov = this.baseFov / this.zoomCur;
+    if (Math.abs(fov - this.camera.fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     this.vmKick *= Math.exp(-dt * 14);
     this.vm.position.z = -0.5 + this.vmKick * 0.12;
     this.vm.rotation.x = this.vmKick * 0.25;

@@ -86,7 +86,7 @@ const FIX = {
   lights: { spot: { x: 4.5, z: -3.3, yaw: PI / 2 }, dur: 0.9, say: 'Ki kapcsolta le a villanyt?!' },
   fuse: { spot: { x: 2.6, z: 5.25, yaw: 0 }, dur: 4, say: 'Már megint a biztosíték?! Nem igaz!' },
   plug: { spot: { x: 4.3, z: -5.35, yaw: PI * 0.75 }, dur: 2.5, say: 'Ki húzta ki a projektort?!' },
-  proj: { spot: { x: 3.0, z: -4.6, yaw: PI }, dur: 3.5, say: 'Cicák?! Ki kapcsolta át a kivetítőt?!' },
+  draw: { spot: CHAIR_SPOT, dur: 2.2, say: 'Ki rajzolt a prezentációmra?! Ez nem rajzóra!' },
   doodle: { spot: { x: P.board.x, z: -5.3, yaw: PI }, dur: 3.5, say: 'Ki firkált a táblára?! Ez nem rajzóra!' },
   window: { spot: { x: -4.4, z: 0, yaw: -PI / 2 }, dur: 1.5, say: 'Ki nyitotta ki az ablakot? Huzat van!' },
   hdmi: { spot: CHAIR_SPOT, dur: 1.8, say: 'Nincs kép… Ki húzta ki a HDMI-kábelt?!' },
@@ -121,7 +121,7 @@ export class Sim {
     let seat = 0;
     while (used.has(seat)) seat++;
     const st = SEATS[seat % SEATS.length];
-    s.players[id] = { id, name: String(name || 'Diák').slice(0, 14), skin: skinById(skin).id, seat, x: st.x, z: st.z, yaw: st.yaw, pitch: 0, held: null, act: null, sus: 0, immune: 0, seen: false, hot: 0, wc: 0, score: 0, caught: 0, dragged: false };
+    s.players[id] = { id, name: String(name || 'Diák').slice(0, 14), skin: skinById(skin).id, seat, x: st.x, z: st.z, yaw: st.yaw, pitch: 0, held: null, act: null, sus: 0, immune: 0, seen: false, hot: 0, wc: 0, score: 0, caught: 0, dragged: false, drawing: false };
     this.emit({ e: 'toast', m: `${s.players[id].name} belépett a terembe`, k: 'info' });
   }
   removePlayer(id) {
@@ -139,7 +139,7 @@ export class Sim {
     const old = this.s.players;
     this.s = {
       phase: 'play', reason: '', t: ROUND_TIME, meter: 0, strikes: 0,
-      lights: true, power: true, plug: true, proj: 'on', hdmi: true, usb: false, screenTorn: false,
+      lights: true, power: true, plug: true, proj: 'on', hdmi: true, usb: false, screenTorn: false, drawOn: false, drawId: 0,
       board: 0.4, doodle: false,
       laptop: 'desk', lapBroken: false, win: false, chairTrap: null, deskTrap: null,
       clock: true, plant: true, globe: true, glass: [1, 1],
@@ -149,7 +149,7 @@ export class Sim {
     };
     for (const p of Object.values(old)) {
       const st = SEATS[p.seat % SEATS.length];
-      Object.assign(p, { x: st.x, z: st.z, yaw: st.yaw, held: null, act: null, sus: 0, immune: 3, seen: false, hot: 0, wc: 0, score: 0, caught: 0, dragged: false });
+      Object.assign(p, { x: st.x, z: st.z, yaw: st.yaw, held: null, act: null, sus: 0, immune: 3, seen: false, hot: 0, wc: 0, score: 0, caught: 0, dragged: false, drawing: false });
       this.emit({ e: 'tp', pid: p.id, x: p.x, z: p.z, yaw: p.yaw });
     }
     this.counts = {};
@@ -237,6 +237,8 @@ export class Sim {
       return;
     }
     if (s.phase !== 'play' || this.endT > 0 || p.dragged) return;
+    if (m.t === 'draw') { this.receiveDrawing(p, m.strokes); return; }
+    if (m.t === 'drawcancel') { p.drawing = false; return; }
     if (m.t === 'act') {
       const it = interactions(s, p).find((i) => i.id === m.id);
       if (it && dist(p.x, p.z, it.x, it.z) <= it.r + 0.7) p.act = { id: it.id, p: 0, hold: it.hold };
@@ -248,6 +250,33 @@ export class Sim {
       if (inWC(p.x)) { this.emit({ e: 'toast', m: 'A mosdóban nem lehet szabotálni!', k: 'bad', pid }); return; }
       if ([m.ox, m.oy, m.oz, m.dx, m.dy, m.dz].every(Number.isFinite)) this.useItem(p, [m.ox, m.oy, m.oz], [m.dx, m.dy, m.dz]);
     }
+  }
+
+  // a laptopon rajzolt kép a vászonra kerül (fehér háttérrel)
+  receiveDrawing(p, strokes) {
+    const s = this.s;
+    if (!p.drawing) return;
+    p.drawing = false;
+    if (!Array.isArray(strokes)) return;
+    const clean = [];
+    let total = 0;
+    for (const st of strokes.slice(0, 80)) {
+      if (!st || !Array.isArray(st.p)) continue;
+      const pts = st.p.slice(0, 400).map((v) => Math.max(0, Math.min(255, Math.round(+v) || 0)));
+      if (pts.length < 2) continue;
+      total += pts.length;
+      if (total > 3000) break;
+      clean.push({ c: Math.max(0, Math.min(5, st.c | 0)), w: Math.max(1, Math.min(3, st.w | 0 || 1)), p: pts.length % 2 ? pts.slice(0, -1) : pts });
+    }
+    if (!clean.length || s.drawOn || s.laptop !== 'desk' || s.lapBroken) return;
+    this.drawSeq = (this.drawSeq || 0) + 1;
+    s.drawId = this.drawSeq;
+    s.drawOn = true;
+    this.lastDrawing = { e: 'drawing', id: s.drawId, strokes: clean };
+    this.emit(this.lastDrawing);
+    p.hot = 0.6;
+    this.gain(14, `${p.name} rajza a vásznon!`, 'draw', p);
+    this.notice('draw', rnd(4, 7));
   }
 
   dropHeld(p) {
@@ -370,15 +399,6 @@ export class Sim {
       this.dropHeld(p);
       it.placed = true; it.by = p.id;
       this.emit({ e: 'toast', m: 'Banánhéj letéve – ha Taba rálép…', k: 'info', pid: p.id });
-    } else if (it.type === 'remote') {
-      if (projState(s) !== 'on' || !(it.ammo > 0)) { this.emit({ e: 'snd', n: 'click' }); return; }
-      p.hot = 0.4;
-      it.ammo--;
-      s.proj = 'meme';
-      this.gain(10, 'Cicás videó a kivetítőn', 'remote', p);
-      this.emit({ e: 'snd', n: 'meow' });
-      this.notice('proj', rnd(1.5, 3));
-      if (it.ammo <= 0) consume();
     }
   }
 
@@ -403,6 +423,9 @@ export class Sim {
       case 'hdmi':
         s.hdmi = false; this.gain(8, 'HDMI kihúzva – fekete a vászon', 'hdmi', p); this.emit({ e: 'snd', n: 'click' });
         this.notice('hdmi', rnd(3, 6));
+        break;
+      case 'draw':
+        p.drawing = true;
         break;
       case 'usb':
         if (!held || held.type !== 'usb') break;
@@ -516,7 +539,7 @@ export class Sim {
     this.say(line, 3.2, 'angry');
     this.emit({ e: 'strike', n, pid: p.id, name: p.name, m: word, wc: inToilet });
     this.confiscate(p);
-    p.act = null; p.sus = 0; p.immune = inToilet ? 9 : 5; p.hot = 0; p.wc = 0;
+    p.act = null; p.sus = 0; p.immune = inToilet ? 9 : 5; p.hot = 0; p.wc = 0; p.drawing = false;
     if (inToilet) {
       // visszavonszolja a terembe
       this.releaseDrag();
@@ -645,8 +668,8 @@ export class Sim {
         else { this.notice('hdmi', 0); this.last = 'projector'; this.act = null; return; }
       } else if (ps === 'hack') {
         this.notice('usb', 0); this.last = 'projector'; this.act = null; return;
-      } else if (ps === 'meme') {
-        this.notice('proj', 0); this.last = 'projector'; this.act = null; return;
+      } else if (ps === 'drawing') {
+        this.notice('draw', 0); this.last = 'projector'; this.act = null; return;
       } else this.say(pick(LINES.projector));
     } else if (a.kind === 'lecture') {
       this.say(pick(LINES.lecture));
@@ -690,7 +713,7 @@ export class Sim {
       case 'lights': s.lights = true; s.cd.switch = 18; break;
       case 'fuse': s.power = true; s.cd.fuse = 40; break;
       case 'plug': s.plug = true; s.cd.outlet = 25; break;
-      case 'proj': if (s.proj === 'meme') s.proj = 'on'; break;
+      case 'draw': s.drawOn = false; s.cd.draw = 20; break;
       case 'hdmi': s.hdmi = true; s.cd.hdmi = 25; break;
       case 'usb': s.usb = false; this.say('Na, ezt a pendrive-ot elkobzom.'); break;
       case 'doodle': s.doodle = false; s.board = 0; s.cd.board = 15; break;
@@ -879,7 +902,7 @@ export class Sim {
     if (isDark(s)) rate += 0.4;
     const ps = projState(s);
     if (ps === 'off' || ps === 'nosignal') rate += 0.3;
-    if (ps === 'meme' || ps === 'hack') rate += 0.45;
+    if (ps === 'drawing' || ps === 'hack') rate += 0.45;
     if (['taken', 'bin', 'locker', 'floor'].includes(s.laptop)) rate += 0.25;
     if (s.doodle) rate += 0.2;
     if (ringing) rate += 0.5;
@@ -924,7 +947,8 @@ export class Sim {
       }
       p.seen = seen;
       const held = p.held != null ? s.items[p.held] : null;
-      const sus = !!p.act || p.hot > 0 || (held && ITEMS[held.type].contraband) || (pWC && tabaWC);
+      if (p.drawing && (dist(p.x, p.z, P.laptop.x, P.laptop.z) > 2.4 || s.laptop !== 'desk' || s.drawOn)) p.drawing = false;
+      const sus = !!p.act || p.drawing || p.hot > 0 || (held && ITEMS[held.type].contraband) || (pWC && tabaWC);
       if (seen && sus && p.immune <= 0) p.sus += dt / (pWC ? 0.35 : 0.45);
       else p.sus = Math.max(0, p.sus - dt / 1.2);
       if (p.sus >= 1) { this.strike(p); if (s.phase !== 'play' || this.endT > 0) return; }

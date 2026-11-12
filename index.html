@@ -47,6 +47,22 @@
     <button id="btnAct" class="rb" disabled><span id="actLabel">AKCIÓ</span></button>
     <button id="btnUse" class="rb" hidden>DOB</button>
     <button id="btnDrop" class="rb" hidden>ELDOB</button>
+
+    <!-- Rajzolás Taba laptopján: ami ide kerül, az megy ki a vászonra -->
+    <div id="drawUI" hidden>
+      <div class="drawTop">
+        <span id="drawStatus" class="pill">👁</span>
+        <span class="drawHint">Rajzolj! A „Kivetítés” után ez lesz a vásznon.</span>
+      </div>
+      <canvas id="drawCanvas"></canvas>
+      <div class="drawBar">
+        <div id="drawColors"></div>
+        <button id="drawWidth" class="btn small">Vastag</button>
+        <button id="drawClear" class="btn small">Törlés</button>
+        <button id="drawCancel" class="btn small">Mégse</button>
+        <button id="drawDone" class="btn small primary">Kivetítés ▶</button>
+      </div>
+    </div>
   </div>
 
   <!-- Főmenü -->
@@ -127,7 +143,7 @@
         <li><b>Taba</b> tanár úr sokszor el van foglalva (laptop, projektor, tábla) – ilyenkor nem lát. A padlón látszik, merre néz: a <span class="c-g">zöld</span> kúp rövidlátó, a <span class="c-o">narancs</span> mindent lát.</li>
         <li>Ha szabotálás közben (vagy laptoppal / AK-val / megafonnal a kezedben) meglát: <b>EGY… KETTŐ… HÁROM</b> – az ujjain mutatja. A harmadiknál mindenki veszít.</li>
         <li><b>Mosdó:</b> az ajtón kimenve a mosdóba jutsz. Ott nem lehet szabotálni, de ha <b>20 mp-nél tovább</b> maradsz, Taba utánad jön – addig a többiek szabadon szívathatnak. Ha a mosdóban elkap, visszavonszol, és kapsz egy lebukást.</li>
-        <li>Taba a <b>laptopjáról</b> vetíti a PPT-t: húzd ki a HDMI-t, dugj bele <b>mémes pendrive</b>-ot, kapcsold át a távirányítóval, vagy lődd szét a projektort / vásznat.</li>
+        <li>Taba a <b>laptopjáról</b> vetíti a PPT-t: menj oda és <b>rajzolj rá</b> – fehér háttérrel a te rajzod jelenik meg a vásznon. Kihúzhatod a HDMI-t, bedughatsz <b>mémes pendrive</b>-ot, vagy szétlőheted a projektort / vásznat.</li>
         <li><b>Megafon:</b> óriási zaj – Taba ordibálni kezd, aztán odanéz, honnan jött. <b>Banánhéj:</b> tedd az útjába. <b>Gumikígyó:</b> az asztalára.</li>
         <li><b>Bolt:</b> az óra végén érméket kapsz, ezekből skineket vehetsz a karakterednek.</li>
         <li>Kapcsold le a villanyt, húzd ki a projektort, töröld le a táblát, lopd el a laptopját (és dobd ki az ablakon), tegyél pukipárnát a székére…</li>

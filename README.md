@@ -13,7 +13,7 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
   - Taba háromszor rajtakap valakit („EGY!… KETTŐ!… HÁROM!”),
   - valaki eltalálja Tabát a szivacslövő AK-val (azonnali vége).
 - Taba akkor kap el, ha a látókúpjában (a padlón látszik) épp szabotálsz, vagy laptop / AK / megafon van a kezedben.
-  Ilyenkor az ujjain mutatja, hányadik lebukás („EGY!” – 1 ujj, „KETTŐ!” – 2 ujj, „HÁROM!” – 3 ujj).
+  Ilyenkor a feje mellett felemelt kezén mutatja (a kamera rá is közelít), hányadik lebukás („EGY!” – 1 ujj, „KETTŐ!” – 2 ujj, „HÁROM!” – 3 ujj).
 - **Mosdó:** az ajtón kimenve a mosdóba jutsz, ott nem lehet szabotálni. Ha 20 mp-nél tovább maradsz, Taba utánad jön
   (addig a többiek szabadon szívathatnak). Ha a mosdóban elkap, visszavonszol a helyedre, és ez egy lebukás.
   Zöld kúp = el van foglalva, alig lát. Narancs = figyel. Sárga = mindjárt felnéz!
@@ -30,9 +30,9 @@ A cél: 5 perc alatt 100%-ra tölteni a **SZÍVATÁS**-mérőt, mielőtt kicseng
 | Pukipárna / ragasztó | Taba székére |
 | Bűzbomba, papírrepülő | dobd Taba felé |
 | Csörgő telefon | tedd le valahol, Taba odamegy elkobozni |
-| Távirányító | cicás videó a kivetítőre |
 | Szivacslövő AK | az egyik szekrényben van; projektor, vászon, óra, virág, földgömb, ablak, laptop lőhető |
 | HDMI kihúzása | Taba laptopjánál – a vásznon „Nincs jel” |
+| Rajzolás a PPT-re | Taba laptopjánál – a rajzod fehér háttérrel megjelenik a vásznon |
 | Mémes pendrive | dugd a laptopba – mémek a PPT helyett |
 | Megafon | óriási zaj, Taba ordibálni kezd, aztán odanéz |
 | Banánhéj | tedd le Taba útjába – elcsúszik |

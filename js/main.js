@@ -1,5 +1,5 @@
 // Fő vezérlés: menük, játékhurok, hálózat összekötése a szimulációval és a megjelenítéssel.
-import { World, studentLook } from './world.js';
+import { World, studentLook, DRAW_COLORS } from './world.js';
 import { Sim } from './sim.js';
 import { Controls } from './controls.js';
 import { createNet, makeCode } from './net.js';
@@ -94,6 +94,7 @@ $('btnHost').onclick = () => {
     if (m.t === 'hello') {
       if (!sim.s.players[pid]) sim.addPlayer(pid, m.name, m.skin);
       n.send(pid, { t: 'hi', pid });
+      if (sim.lastDrawing) n.send(pid, { t: 'ev', ev: sim.lastDrawing });
       n.send(pid, { t: 's', s: sim.s });
     } else sim.handle(pid, m);
   };
@@ -210,6 +211,7 @@ function enterPlay() {
   }
 }
 function enterEnd() {
+  closeDraw();
   mode = 'end';
   ctl.enabled = false; ctl.release();
   $('hud').hidden = true;
@@ -228,6 +230,7 @@ function enterEnd() {
   play(won ? 'win' : 'lose');
 }
 function leave() {
+  closeDraw();
   if (net) { const n = net; net = null; n.close(); }
   sim = null; role = null; myId = '_';
   preview = makePreview();
@@ -254,21 +257,11 @@ function toast(text, kind = 'info') {
   setTimeout(() => d.remove(), 3300);
 }
 let bannerTimer = 0;
-// rajzolt kéz: n ujj felemelve
-function handSvg(n) {
-  let f = '';
-  for (let i = 0; i < 4; i++) {
-    const up = i < n;
-    f += `<rect x="${20 + i * 21}" y="${up ? 8 : 52}" width="19" height="${up ? 78 : 30}" rx="9.5"/>`;
-  }
-  return `<svg class="hand" viewBox="0 0 124 150" aria-hidden="true"><g fill="#f0c8a0" stroke="#5a3a20" stroke-width="4">${f}<rect x="14" y="62" width="92" height="76" rx="22"/><rect x="88" y="82" width="20" height="42" rx="10" transform="rotate(-35 98 103)"/></g></svg>`;
-}
-function banner(big, small, fingers = 0) {
+function banner(big, small) {
   const b = $('banner');
   b.hidden = true;
   void b.offsetWidth;
   b.textContent = big;
-  if (fingers) b.insertAdjacentHTML('afterbegin', handSvg(fingers));
   if (small) { const s = document.createElement('small'); s.textContent = small; b.appendChild(s); }
   b.hidden = false;
   clearTimeout(bannerTimer);
@@ -289,7 +282,7 @@ function handleEvent(ev) {
     }
     case 'snd': play(ev.n); break;
     case 'strike':
-      banner(ev.m, ev.hit ? 'Eltaláltátok Tabát!' : ev.name ? `Taba elkapta: ${ev.name}${ev.wc ? ' a mosdóban' : ''}` : '', ev.hit ? 0 : Math.min(ev.n, 3));
+      banner(ev.m, ev.hit ? 'Eltaláltátok Tabát!' : ev.name ? `Taba elkapta: ${ev.name}${ev.wc ? ' a mosdóban' : ''}` : '');
       play('strike');
       if (ev.pid === myId) faceT = 2.8;
       try { navigator.vibrate?.(ev.pid === myId ? [120, 60, 200] : 80); } catch { /* ignore */ }
@@ -297,6 +290,7 @@ function handleEvent(ev) {
     case 'tp':
       if (ev.pid === myId) { me.x = ev.x; me.z = ev.z; ctl.yaw = ev.yaw; ctl.pitch = 0; }
       break;
+    case 'drawing': world.drawings.set(ev.id, ev.strokes); break;
     case 'dart': case 'puff': case 'plane': case 'lob': world.spawnFx(ev); break;
   }
 }
@@ -339,6 +333,95 @@ hold($('btnAct'), setAct);
 hold($('btnUse'), (d) => d && useItem());
 hold($('btnDrop'), (d) => d && send({ t: 'drop' }));
 
+// ---- rajzolás a laptopon --------------------------------------------------
+let drawSuppress = false; // a saját bezárás után várjuk meg, míg a szerver is lezárja
+let drawOpen = false, drawStrokes = [], drawCur = null, drawColor = 0, drawW = 1, drawTotal = 0;
+const dc = $('drawCanvas'), dg = dc.getContext('2d');
+DRAW_COLORS.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.style.setProperty('--c', c);
+  b.setAttribute('aria-label', 'Szín ' + (i + 1));
+  b.onclick = () => { drawColor = i; [...$('drawColors').children].forEach((x, j) => x.classList.toggle('on', j === i)); };
+  if (i === 0) b.classList.add('on');
+  $('drawColors').appendChild(b);
+});
+function sizeDraw() {
+  const maxW = innerWidth - 40, maxH = innerHeight - 130;
+  const w = Math.max(160, Math.min(maxW, maxH * 1.5)), h = w / 1.5;
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  dc.style.width = w + 'px'; dc.style.height = h + 'px';
+  dc.width = Math.round(w * dpr); dc.height = Math.round(h * dpr);
+  redrawDraw();
+}
+function redrawDraw() {
+  dg.setTransform(1, 0, 0, 1, 0, 0);
+  dg.fillStyle = '#fff'; dg.fillRect(0, 0, dc.width, dc.height);
+  dg.lineCap = 'round'; dg.lineJoin = 'round';
+  for (const st of drawStrokes) {
+    dg.strokeStyle = DRAW_COLORS[st.c]; dg.lineWidth = dc.width / 384 * 1.6 * st.w;
+    dg.beginPath();
+    for (let i = 0; i < st.p.length; i += 2) {
+      const x = (st.p[i] / 255) * dc.width, y = (st.p[i + 1] / 255) * dc.height;
+      if (i === 0) dg.moveTo(x, y); else dg.lineTo(x, y);
+    }
+    if (st.p.length === 2) dg.lineTo((st.p[0] / 255) * dc.width + 1, (st.p[1] / 255) * dc.height);
+    dg.stroke();
+  }
+}
+function drawPoint(e) {
+  const r = dc.getBoundingClientRect();
+  return [Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 255), Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 255)];
+}
+dc.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (drawStrokes.length >= 80 || drawTotal > 2900) { toast('Betelt a dia! Küldd ki vagy töröld.', 'bad'); return; }
+  try { dc.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  drawCur = { c: drawColor, w: drawW, p: drawPoint(e) };
+  drawStrokes.push(drawCur);
+  drawTotal += 2;
+  redrawDraw();
+});
+dc.addEventListener('pointermove', (e) => {
+  if (!drawCur) return;
+  const [x, y] = drawPoint(e);
+  const p = drawCur.p;
+  if (Math.hypot(x - p[p.length - 2], y - p[p.length - 1]) < 2.5) return;
+  if (p.length >= 400 || drawTotal > 2990) { drawCur = null; return; }
+  p.push(x, y); drawTotal += 2;
+  redrawDraw();
+});
+for (const n of ['pointerup', 'pointercancel']) dc.addEventListener(n, () => { drawCur = null; });
+$('drawWidth').onclick = () => { drawW = drawW === 1 ? 3 : 1; $('drawWidth').classList.toggle('on', drawW === 3); };
+$('drawClear').onclick = () => { drawStrokes = []; drawTotal = 0; redrawDraw(); };
+$('drawCancel').onclick = () => { send({ t: 'drawcancel' }); drawSuppress = true; closeDraw(); };
+$('drawDone').onclick = () => {
+  if (!drawStrokes.length) { toast('Előbb rajzolj valamit!', 'bad'); return; }
+  send({ t: 'draw', strokes: drawStrokes });
+  drawSuppress = true;
+  closeDraw();
+};
+function openDraw() {
+  drawOpen = true;
+  ctl.enabled = false; ctl.release();
+  setAct(false);
+  $('drawUI').hidden = false;
+  sizeDraw();
+}
+function closeDraw() {
+  if (!drawOpen) return;
+  drawOpen = false;
+  drawCur = null;
+  $('drawUI').hidden = true;
+  if (mode === 'play') ctl.enabled = true;
+}
+function syncDraw(p) {
+  const want = !!(p && p.drawing);
+  if (!want) drawSuppress = false;
+  if (want && !drawOpen && !drawSuppress) { drawStrokes = []; drawTotal = 0; openDraw(); }
+  else if (!want && drawOpen) closeDraw();
+}
+addEventListener('resize', () => { if (drawOpen) sizeDraw(); });
+
 // ---- HUD ----------------------------------------------------------------
 const ST = {
   laptop: '💻 laptopozik', projector: '📽️ a projektorral babrál', board: '✍️ a táblára ír', fix: '🔧 javít valamit',
@@ -369,6 +452,7 @@ function updateHud() {
   else if (meWC) stText = `🚽 Taba a mosdóban van!${seen ? ' · LÁT TÉGED' : ''}`;
   else if (tabaWC) stText = '🚽 Taba kiment a mosdóba – most szívass!';
   setText($('tabaSt'), 'st', stText);
+  if (drawOpen) { setText($('drawStatus'), 'dst', stText); $('drawStatus').className = 'pill ' + (sus > 0.05 ? 'caught' : seen ? 'seen' : ''); }
   const cls = 'pill ' + (sus > 0.05 ? 'caught' : seen || (meWC && p && p.wc > WC_LIMIT - 6) ? 'seen' : 'safe');
   if (cache.stCls !== cls) { cache.stCls = cls; $('status').className = cls; }
   $('vignette').style.opacity = Math.min(1, sus * 1.2).toFixed(2);
@@ -416,7 +500,7 @@ function updateHud() {
 
   // szövegbuborék + névtáblák
   const T = s.taba, bub = $('bubble');
-  if (T.say) {
+  if (T.say && T.st !== 'count') {
     const pos = world.project(world.taba.position.x, T.sit ? 1.75 : 2.05, world.taba.position.z);
     bub.hidden = !pos.ok;
     setText(bub, 'say', T.say);
@@ -498,9 +582,11 @@ function frame(now) {
       let d = want - ctl.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
       ctl.yaw += d * Math.min(1, dt * 8);
-      const wantP = Math.atan2(2.2 - EYE, Math.max(0.5, Math.hypot(tp.x - me.x, tp.z - me.z)));
+      const dd = Math.max(0.5, Math.hypot(tp.x - me.x, tp.z - me.z));
+      const wantP = Math.atan2(1.85 - EYE, dd);
       ctl.pitch += (wantP - ctl.pitch) * Math.min(1, dt * 8);
-    }
+      world.zoom = Math.max(1, Math.min(3.6, dd / 2.3));
+    } else world.zoom = 1;
     me.yaw = ctl.yaw; me.pitch = ctl.pitch;
     const dragged = mp && mp.dragged;
     if (dragged) {
@@ -521,6 +607,7 @@ function frame(now) {
       send({ t: 'pos', x: me.x, z: me.z, yaw: me.yaw, pitch: me.pitch });
     }
     updateHud();
+    syncDraw(mp);
     world.update(view, myId, dt, t, me);
   } else {
     if (mode === 'lobby') updateLobby();
