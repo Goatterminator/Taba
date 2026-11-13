@@ -81,12 +81,37 @@ Valaki megnyomja a **Szoba létrehozása** gombot, a többiek beírják a 4 bet�
 A kapcsolat közvetlenül a telefonok között megy (WebRTC, PeerJS), a szoba gazdájának telefonja futtatja a játékot –
 ő ne zárja be / tegye háttérbe a játékot óra közben.
 
+## Fizika – Napraforgó mód
+
+Fizika néni felírja az okostáblára: „A napraforgó a nappal ellentétesen forog!” Bizonyítsátok be, hogy nem igaz:
+szökjetek ki a kertbe, a kísérletekért (inga, emelő, napóra) magot kaptok; a táskákban a váza és a vizes palack,
+az ablakpárkányon a kanna; üljetek be egy napos padba, és neveljétek fel a napraforgót úgy, hogy Fizika néni ne
+vegye észre (ELTAKAR gomb). A kész növényt vigyétek oda neki. Fizika néni fakanállal üldöz, két találat után
+rakétavetővel; három találat vagy 15 perc után vége. Elterelés: fejszével az okostábla, generátor, villany,
+tűzjelző, papírgalacsin, telefon. Többen: közös életek, több mag kell, tárgyakat át lehet adni (ÁTAD),
+a kiütött játékos JELEZ-ni tud. A játék nem támogatja a káros szerek fogyasztását és a fegyverek használatát –
+ezek csak a játékélmény miatt szerepelnek.
+
+## Szobalista (server.py)
+
+A `server.py` (csak Python standard könyvtár) kiszolgálja a játékot és a `/api/rooms` szobalistát.
+A Pi-n a mostani `python3 -m http.server` helyett ezt kell futtatni:
+
+```bash
+cd ~/taba && git pull
+sudo sed -i "s#^ExecStart=.*#ExecStart=/usr/bin/python3 $HOME/taba/server.py 8080#" /etc/systemd/system/taba.service
+sudo systemctl daemon-reload && sudo systemctl restart taba
+curl -s http://127.0.0.1:8080/api/rooms
+```
+
+Az utolsó parancsnak `{"rooms": []}`-t kell kiírnia. A Tailscale Funnel beállításán nem kell változtatni.
+
 ## Futtatás és telepítés
 
 Nincs build lépés, sima statikus weboldal:
 
 ```bash
-python3 -m http.server 8000   # majd http://localhost:8000
+python3 server.py 8000   # majd http://localhost:8000
 ```
 
 Telefonra: a repó **Settings → Pages** menüjében válaszd ki az ágat és a `/ (root)` mappát. A kapott
