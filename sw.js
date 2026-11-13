@@ -1,5 +1,5 @@
 // Offline gyorsítótár: a játék telepítve internet nélkül is elindul (egyjátékos mód).
-const CACHE = 'taba-v7';
+const CACHE = 'taba-v8';
 const ASSETS = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/main.js', 'js/world.js', 'js/sim.js', 'js/data.js', 'js/lines.js', 'js/controls.js', 'js/net.js', 'js/audio.js',
@@ -15,7 +15,8 @@ self.addEventListener('activate', (e) => {
 // Hálózat először (hogy a frissítések azonnal megjöjjenek), ha nincs net, akkor a gyorsítótár.
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.includes('/api/')) return;
   e.respondWith(
     fetch(req).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }

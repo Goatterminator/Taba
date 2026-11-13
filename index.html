@@ -91,9 +91,14 @@
         <button id="btnSolo" class="btn">Egyedül játszom</button>
         <button id="btnHost" class="btn primary">Szoba létrehozása</button>
       </div>
+      <label class="check"><input type="checkbox" id="private"> Privát szoba (nem látszik a listán, csak kóddal lehet belépni)</label>
       <div class="row join">
         <input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="KÓD">
         <button id="btnJoin" class="btn">Csatlakozás</button>
+      </div>
+      <div id="rooms">
+        <h3>Nyitott szobák</h3>
+        <div id="roomList"><p class="tiny">Keresés…</p></div>
       </div>
       <button id="btnShop" class="btn shopBtn">Bolt – skinek <span class="coins"><i class="coin"></i> <b id="menuCoins">0</b></span></button>
       <p id="menuMsg" class="msg" hidden></p>

@@ -84,29 +84,84 @@ $('btnSolo').onclick = () => {
   sim.start();
   view = sim.s;
 };
+// ---- szobalista (a Pi-n futó server.py adja) ------------------------------
+const MAX_PLAYERS = 4;
+const MODE_NAMES = { tori: 'Töri – Taba', fizika: 'Fizika – Napraforgó' };
+let privateRoom = false, roomTimer = 0, hostName = '';
+$('private').checked = store.get('taba.private') === '1';
+$('private').onchange = () => store.set('taba.private', $('private').checked ? '1' : '0');
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined, keepalive: method !== 'GET', cache: 'no-store' });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+async function refreshRooms() {
+  if (mode !== 'menu') return;
+  const box = $('roomList');
+  try {
+    const { rooms } = await api('GET', 'api/rooms');
+    box.textContent = '';
+    if (!rooms.length) { box.innerHTML = '<p class="tiny">Most nincs nyitott szoba. Hozz létre egyet!</p>'; return; }
+    for (const r of rooms) {
+      const b = document.createElement('button');
+      b.className = 'roomBtn';
+      const full = r.players >= r.max;
+      b.disabled = full;
+      b.innerHTML = '<b></b><span></span><em></em><small></small>';
+      b.querySelector('b').textContent = r.code;
+      b.querySelector('span').textContent = r.name;
+      b.querySelector('em').textContent = `${r.players}/${r.max}`;
+      b.querySelector('small').textContent = (MODE_NAMES[r.mode] || r.mode) + (full ? ' · tele van' : r.playing ? ' · már megy az óra' : ' · várakozik');
+      b.onclick = () => { codeInput.value = r.code; $('btnJoin').click(); };
+      box.appendChild(b);
+    }
+  } catch {
+    box.innerHTML = '<p class="tiny">A szobalista most nem érhető el – kóddal ugyanúgy lehet csatlakozni.</p>';
+  }
+}
+setInterval(refreshRooms, 5000);
+refreshRooms();
+function announceRoom() {
+  if (role !== 'host' || !net || privateRoom || !sim) return;
+  const s = sim.s;
+  api('POST', 'api/rooms', {
+    code, name: `${hostName} szobája`, mode: s.mode || 'tori',
+    players: Object.keys(s.players).length, max: MAX_PLAYERS, playing: !['lobby', 'won', 'lost'].includes(s.phase),
+  }).catch(() => {});
+}
+function unannounceRoom() {
+  if (role === 'host' && !privateRoom && code) api('DELETE', 'api/rooms/' + code).catch(() => {});
+}
+
 $('btnHost').onclick = () => {
   unlockAudio();
   menuMsg('Szoba létrehozása…');
+  privateRoom = $('private').checked;
   code = makeCode();
   const n = createNet(code, true);
   net = n;
   n.onOpen = () => {
     role = 'host'; myId = 'host';
     sim = new Sim(onSimEvent);
-    sim.addPlayer(myId, myName(), wallet.skin);
+    hostName = myName();
+    sim.addPlayer(myId, hostName, wallet.skin);
     view = sim.s;
     enterLobby();
+    announceRoom();
+    clearInterval(roomTimer);
+    roomTimer = setInterval(announceRoom, 10000);
   };
   n.onMsg = (pid, m) => {
     if (!sim || !m) return;
     if (m.t === 'hello') {
-      if (!sim.s.players[pid]) sim.addPlayer(pid, m.name, m.skin);
+      if (!sim.s.players[pid] && Object.keys(sim.s.players).length >= MAX_PLAYERS) { n.send(pid, { t: 'full' }); return; }
+      if (!sim.s.players[pid]) { sim.addPlayer(pid, m.name, m.skin); setTimeout(announceRoom, 200); }
       n.send(pid, { t: 'hi', pid });
       if (sim.lastDrawing) n.send(pid, { t: 'ev', ev: sim.lastDrawing });
       n.send(pid, { t: 's', s: sim.s });
     } else sim.handle(pid, m);
   };
-  n.onLeave = (pid) => sim && sim.removePlayer(pid);
+  n.onLeave = (pid) => { if (sim) { sim.removePlayer(pid); setTimeout(announceRoom, 200); } };
   n.onError = (t) => { if (net === n) { leave(); menuMsg(t); } };
 };
 $('btnJoin').onclick = () => {
@@ -120,6 +175,7 @@ $('btnJoin').onclick = () => {
   n.onOpen = () => n.send('host', { t: 'hello', name: myName(), skin: wallet.skin });
   n.onMsg = (_, m) => {
     if (!m) return;
+    if (m.t === 'full') { leave(); menuMsg('Ez a szoba megtelt (legfeljebb 4 játékos).'); return; }
     if (m.t === 'hi') { myId = m.pid; role = 'client'; }
     else if (m.t === 's' && role === 'client') { view = m.s; if (mode === 'menu') enterLobby(); }
     else if (m.t === 'ev') handleEvent(m.ev);
@@ -317,6 +373,8 @@ function eventBanner(title, desc, mine) {
 }
 
 function leave() {
+  unannounceRoom();
+  clearInterval(roomTimer);
   closeDraw();
   quizOpen = false; $('quizUI').hidden = true;
   if (net) { const n = net; net = null; n.close(); }
@@ -327,6 +385,7 @@ function leave() {
   ctl.enabled = false; ctl.release();
   $('hud').hidden = true;
   show('menu');
+  refreshRooms();
   try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* ignore */ }
 }
 
@@ -782,6 +841,7 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
+addEventListener('pagehide', () => unannounceRoom());
 // a host akkor is léptesse a játékot, ha a füle a háttérbe kerül
 setInterval(() => { if (document.hidden && role === 'host') tickSim(performance.now()); }, 250);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && role !== 'host') lastSim = performance.now(); });
