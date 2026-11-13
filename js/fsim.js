@@ -2,10 +2,10 @@
 import {
   F_TIME, F_LIVES, ROOM, GARDEN, DOOR, P, DESKS, seatPos, PLAYER_DESKS, EMPTY_DESKS, SNITCH_DESK,
   makeBags, JUNK, COVER, TOBS, NAV, AISLES, FRONT_Z, BACK_Z, interactions, collide, inGarden, walkable, sunAt,
-} from './fdata.js';
-import { skinById } from './data.js';
-import { line } from './lines.js';
-import './flines.js';
+} from './fdata.js?v=13';
+import { skinById } from './data.js?v=13';
+import { line } from './lines.js?v=13';
+import './flines.js?v=13';
 
 const PI = Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);
