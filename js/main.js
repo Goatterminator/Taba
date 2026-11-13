@@ -5,6 +5,10 @@ import { Controls } from './controls.js';
 import { createNet, makeCode } from './net.js';
 import { play, unlockAudio, setMuted, music, setMusicEnabled } from './audio.js';
 import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js';
+import { FSim } from './fsim.js';
+import { FWorld } from './fworld.js';
+import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js';
+import { openMg, closeMg, mgOpen } from './minigames.js';
 
 const $ = (id) => document.getElementById(id);
 const ICON_SOUND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
@@ -17,6 +21,13 @@ const store = {
 };
 
 const world = new World($('c'));
+let fworld = null;
+const getF = () => fworld || (fworld = new FWorld(world.renderer));
+const isF = () => !!view && view.mode === 'fizika';
+const W = () => (isF() ? getF() : world);
+let gameMode = store.get('taba.mode') === 'fizika' ? 'fizika' : 'tori';
+const makeSim = (m) => (m === 'fizika' ? new FSim(onSimEvent) : new Sim(onSimEvent));
+let sprint = false, stamina = 1;
 const ctl = new Controls($('touch'), $('joy'), $('joyKnob'));
 
 // háttér a menü mögé: egy „néma” óra
@@ -76,10 +87,18 @@ function show(id) {
 }
 function menuMsg(t) { $('menuMsg').textContent = t || ''; $('menuMsg').hidden = !t; }
 
+function setMode(m) {
+  gameMode = m; store.set('taba.mode', m);
+  $('modeTori').classList.toggle('on', m === 'tori');
+  $('modeFizika').classList.toggle('on', m === 'fizika');
+}
+$('modeTori').onclick = () => setMode('tori');
+$('modeFizika').onclick = () => setMode('fizika');
+setMode(gameMode);
 $('btnSolo').onclick = () => {
   unlockAudio();
   role = 'solo'; myId = 'me';
-  sim = new Sim(onSimEvent);
+  sim = makeSim(gameMode);
   sim.addPlayer(myId, myName(), wallet.skin);
   sim.start();
   view = sim.s;
@@ -142,7 +161,7 @@ $('btnHost').onclick = () => {
   net = n;
   n.onOpen = () => {
     role = 'host'; myId = 'host';
-    sim = new Sim(onSimEvent);
+    sim = makeSim(gameMode);
     hostName = myName();
     sim.addPlayer(myId, hostName, wallet.skin);
     view = sim.s;
@@ -263,7 +282,7 @@ function enterLobby() {
   show('lobby');
   $('lobbyCode').textContent = code;
   $('btnStart').hidden = role !== 'host';
-  $('lobbyMsg').textContent = role === 'host' ? 'Add meg a kódot a többieknek, aztán csengess be!' : 'Várakozás a becsengetésre…';
+  $('lobbyMsg').textContent = (MODE_NAMES[view.mode || 'tori'] || '') + ' · ' + (role === 'host' ? 'Add meg a kódot a többieknek, aztán csengess be!' : 'Várakozás a becsengetésre…');
 }
 function enterPlay() {
   mode = 'play';
@@ -274,6 +293,15 @@ function enterPlay() {
   const p = view.players[myId];
   if (p) { me.x = p.x; me.z = p.z; ctl.yaw = p.yaw; ctl.pitch = 0; }
   ctl.enabled = true;
+  sprint = false; stamina = 1; closeMg();
+  const f = isF();
+  for (const id of ['meterWrap', 'goals']) $(id).hidden = false;
+  $('meterLabel').textContent = f ? 'NAPRAFORGÓ' : 'SZÍVATÁS';
+  $('strikes').title = f ? 'Találatok' : 'Lebukások';
+  $('btnDrop').hidden = true;
+  for (const id of ['btnStand', 'btnCover', 'btnSprint', 'btnGive', 'btnPing']) $(id).hidden = true;
+  $('stamina').hidden = !f;
+  for (const k in cache) delete cache[k];
   $('toasts').textContent = '';
   actDown = false;
   lastSim = performance.now();
@@ -284,6 +312,9 @@ function enterPlay() {
 }
 function enterEnd() {
   closeDraw();
+  closeMg();
+  $('hud').classList.remove('cine');
+  if (isF()) return enterEndF();
   quizOpen = false; $('quizUI').hidden = true;
   mode = 'end';
   ctl.enabled = false; ctl.release();
@@ -372,10 +403,49 @@ function eventBanner(title, desc, mine) {
   evtTimer = setTimeout(() => (el.hidden = true), 4200);
 }
 
+function enterEndF() {
+  mode = 'end';
+  ctl.enabled = false; ctl.release();
+  $('hud').hidden = true;
+  const s = view, won = s.phase === 'won', st = s.stats || {};
+  $('endTitle').textContent = won ? 'BEBIZONYÍTOTTÁTOK' : 'NEM SIKERÜLT';
+  $('endReason').textContent = s.reason;
+  const used = 900 - Math.ceil(s.t);
+  const growth = s.plant ? Math.floor(s.plant.growth * 100) : 0;
+  const reward = Math.max(5, (won ? 70 + Math.floor(s.t / 10) : 8 + Math.floor(growth / 5)) - 5 * (s.hits || 0) + Math.floor(Math.min(40, (s.players[myId] || {}).score || 0) / 2));
+  wallet.coins += reward;
+  saveWallet();
+  $('endStats').innerHTML = `<div><b>${Math.floor(used / 60)}:${String(used % 60).padStart(2, '0')}</b>játékidő</div><div><b>${s.hits || 0}/${F_LIVES}</b>találat</div><div><b>${won ? 100 : growth}%</b>napraforgó</div><div><b>+${reward}</b>érme (össz.: ${wallet.coins})</div>`;
+  const L = [];
+  const add = (c, t) => { if (c) L.push(t); };
+  add(st.seeds, `${st.seeds} sikeres kerti kísérlet.`);
+  add(st.bags, `${st.bags} átkutatott iskolatáska.`);
+  add(st.smash, 'Az okostábla egy fejszével találkozott.');
+  add(st.distract, `${st.distract} figyelemelterelés.`);
+  add(st.confiscated, `Fizika néni ${st.confiscated}× kobozta el a napraforgót.`);
+  add(st.rockets, `${st.rockets} rakétatalálat. Fizikailag indokolt volt.`);
+  add(st.hits - (st.rockets || 0) > 0, `${st.hits - (st.rockets || 0)} fakanál-találat.`);
+  add(st.vices, `${st.vices}× a pad táskájából. Fizika néni megjegyezte.`);
+  add(st.rolls, `${st.rolls} névsorolvasás.`);
+  if (!L.length) L.push('Csendes óra volt. Gyanúsan csendes.');
+  const box = $('endLog');
+  box.textContent = '';
+  const h = document.createElement('h3'); h.textContent = 'Beírás az osztálynaplóba'; box.appendChild(h);
+  const ul = document.createElement('ul');
+  for (const t of L.slice(0, 6)) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }
+  box.appendChild(ul);
+  $('btnAgain').hidden = role === 'client';
+  $('endWait').hidden = role !== 'client';
+  show('end');
+  play(won ? 'win' : 'lose');
+}
+
 function leave() {
   unannounceRoom();
   clearInterval(roomTimer);
   closeDraw();
+  closeMg();
+  $('hud').classList.remove('cine');
   quizOpen = false; $('quizUI').hidden = true;
   if (net) { const n = net; net = null; n.close(); }
   sim = null; role = null; myId = '_';
@@ -418,6 +488,25 @@ function handleEvent(ev) {
   if (!ev) return;
   switch (ev.e) {
     case 'gain': toast(`+${ev.v}  ${ev.m}`, 'good'); play('gain'); world.npcReact('watch', 1.6); break;
+    case 'hit':
+      W().npcReact('gasp', 2.6);
+      banner(ev.kind === 'rocket' ? 'TALÁLAT' : 'CSATT', `${ev.name} – ${ev.n}/${F_LIVES} találat`);
+      if (ev.pid === myId) {
+        if (ev.kind === 'rocket') { $('fade').classList.add('on'); setTimeout(() => $('fade').classList.remove('on'), 1400); }
+        closeMg(); try { navigator.vibrate?.([150, 60, 250]); } catch { /* ignore */ }
+      }
+      break;
+    case 'swing': play('whoosh'); break;
+    case 'boom': case 'trail': W().spawnFx(ev); break;
+    case 'mg':
+      if (ev.pid === myId) {
+        ctl.enabled = false; ctl.release(); setAct(false);
+        openMg(ev.kind, ev.hard || 0, (ok) => { send({ t: 'mg', ok }); if (mode === 'play') ctl.enabled = true; });
+      }
+      break;
+    case 'mgEnd': if (ev.pid === myId && mgOpen()) { closeMg(); if (mode === 'play') ctl.enabled = true; } break;
+    case 'beer': if (ev.pid === myId) { getF().startBeer(); getF().drunk = 30; } break;
+    case 'cut': break;
     case 'snitch':
       toast(`Stréber: „${ev.m}”`, 'bad'); play('snitch');
       if (ev.pid === myId) { try { navigator.vibrate?.([60, 40, 60]); } catch { /* ignore */ } }
@@ -425,15 +514,15 @@ function handleEvent(ev) {
     case 'combo': combo(ev.n); break;
     case 'evt':
       eventBanner(ev.t, ev.d, ev.pid === myId);
-      world.npcReact('watch', 2);
+      W().npcReact('watch', 2);
       if (ev.pid === myId) { try { navigator.vibrate?.([100, 50, 100, 50, 100]); } catch { /* ignore */ } }
       break;
     case 'goal': toast('Kihívás teljesítve: ' + ev.m, 'good'); play('goal'); break;
-    case 'shake': world.shake(ev.a); break;
+    case 'shake': W().shake(ev.a); break;
     case 'toast': if (!ev.pid || ev.pid === myId) toast(ev.m, ev.k); break;
     case 'say': {
       if (mode !== 'play') break;
-      if (ev.mood === 'yell') world.npcReact('duck', 2.4);
+      if (ev.mood === 'yell') W().npcReact('duck', 2.4);
       if (ev.mood === 'pa') toast('Hangosbemondó: ' + ev.m, 'info');
       break;
     }
@@ -446,10 +535,10 @@ function handleEvent(ev) {
       try { navigator.vibrate?.(ev.pid === myId ? [120, 60, 200] : 80); } catch { /* ignore */ }
       break;
     case 'tp':
-      if (ev.pid === myId) { me.x = ev.x; me.z = ev.z; ctl.yaw = ev.yaw; ctl.pitch = 0; }
+      if (ev.pid === myId) { me.x = ev.x; me.z = ev.z; if (!ev.keepYaw) { ctl.yaw = ev.yaw; ctl.pitch = 0; } }
       break;
     case 'drawing': world.drawings.set(ev.id, ev.strokes); break;
-    case 'dart': case 'puff': case 'plane': case 'lob': world.spawnFx(ev); break;
+    case 'dart': case 'puff': case 'plane': case 'lob': W().spawnFx(ev); break;
   }
 }
 
@@ -471,6 +560,12 @@ function setAct(down) {
 function useItem() {
   if (mode !== 'play') return;
   const p = view.players[myId];
+  if (isF()) {
+    if (!p || !(p.inv.ball > 0 || p.inv.phone > 0)) return;
+    const cp = Math.cos(me.pitch);
+    send({ t: 'use', ox: me.x, oz: me.z, dx: Math.sin(me.yaw) * cp, dy: Math.sin(me.pitch), dz: Math.cos(me.yaw) * cp });
+    return;
+  }
   const it = p && p.held != null ? view.items[p.held] : null;
   if (!it) return;
   const def = ITEMS[it.type];
@@ -490,9 +585,26 @@ const hold = (el, fn) => {
   el.addEventListener('contextmenu', (e) => e.preventDefault());
 };
 hold($('btnAct'), setAct);
-hold($('btnUse'), (d) => d && useItem());
+hold($('btnUse'), (d) => {
+  if (!d) return;
+  const p = view.players[myId];
+  if (isF() && p && p.seated != null) { seatIdx++; return; }
+  useItem();
+});
 hold($('btnDrop'), (d) => d && send({ t: 'drop' }));
 hold($('btnCrouch'), (d) => d && setCrouch(!crouch));
+hold($('btnStand'), (d) => d && send({ t: 'stand' }));
+hold($('btnCover'), (d) => d && send({ t: 'cover' }));
+hold($('btnSprint'), (d) => { if (d) { sprint = !sprint; $('btnSprint').classList.toggle('on', sprint); } });
+hold($('btnGive'), (d) => { if (d && giveTo) send({ t: 'give', to: giveTo }); });
+hold($('btnPing'), (d) => {
+  if (!d) return;
+  // ahova nézel, oda kerül a jelzés (a padlón)
+  const cp = Math.cos(me.pitch), dy = Math.sin(me.pitch);
+  const tt = dy < -0.05 ? Math.min(12, (me.eye ?? EYE) / -dy) : 8;
+  send({ t: 'ping', x: me.x + Math.sin(me.yaw) * cp * tt, z: me.z + Math.cos(me.yaw) * cp * tt });
+});
+let giveTo = null;
 
 // ---- rajzolás a laptopon --------------------------------------------------
 let drawSuppress = false; // a saját bezárás után várjuk meg, míg a szerver is lezárja
@@ -743,6 +855,211 @@ function updateHud() {
   if (s.items.some((i) => i.ringing && !i.gone) && performance.now() - lastRing > 900) { lastRing = performance.now(); play('ring'); }
 }
 
+// ---- Fizika mód: kijelző és mozgás ------------------------------------------
+const FST = {
+  write: 'az okostáblára ír', board: 'az okostáblára ír', lab: 'kísérletezik', grade: 'dolgozatot javít', lecture: 'magyaráz – figyel',
+  roll: 'névsort olvas – mindenki a helyére!', walk: 'járkál – figyel', run: 'ÜLDÖZ!', aim: 'CÉLOZ!', swing: 'ÜT!', look: 'odanéz',
+  warn: 'gyanakszik…', glance: 'FELNÉZ!', phone: 'a rendszergazdát hívja', fix: 'javít valamit', scared: 'megijedt', stun: 'kiakadt',
+};
+let seatIdx = 0;
+function invText(inv) {
+  const a = [];
+  if (inv.seeds) a.push(`Mag ${inv.seeds}`);
+  if (inv.vase) a.push('Váza');
+  if (inv.hasCan) a.push(`Kanna (${inv.can} locsolás)`);
+  if (inv.bottle) a.push(`Palack ${inv.bottle}`);
+  if (inv.axe) a.push('Fejsze');
+  if (inv.ball) a.push(`Galacsin ${inv.ball}`);
+  if (inv.phone) a.push('Telefon');
+  return a.join(' · ');
+}
+function updateHudF() {
+  const s = view, p = s.players[myId], T = s.teacher, F = getF();
+  if (!p) return;
+  const tl = Math.ceil(s.t);
+  setText($('timer'), 'timer', `${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`);
+  $('timer').classList.toggle('low', tl <= 60);
+  const pl = s.plant;
+  const pct = pl ? Math.floor(pl.growth * 100) : 0;
+  if (cache.pct !== pct) { cache.pct = pct; $('meterFill').style.width = pct + '%'; $('meterPct').textContent = pct + '%'; }
+  if (cache.strikes !== s.hits) { cache.strikes = s.hits; [...$('strikes').children].forEach((el, i) => el.classList.toggle('on', i < s.hits)); }
+  const seen = p.seen, sus = p.sus || 0;
+  const chasedMe = T.target === myId;
+  let st = `Fizika néni ${FST[T.st] || ''}`;
+  if (T.hidden) st = 'Fizika néni nincs a teremben';
+  else if (inGarden(T.x) && !inGarden(me.x)) st = 'Fizika néni a kertben van – a terem szabad';
+  if (p.down > 0) st = `Kiütve – ${Math.ceil(p.down)} mp${Object.keys(s.players).length > 1 ? ' · JELEZ: mutasd meg a többieknek, hol jár' : ''}`;
+  else if (chasedMe) st = T.weapon === 'rocket' ? 'RAKÉTAVETŐ – fuss, térj ki!' : 'FAKANÁL – fuss, vagy ülj vissza a padodba!';
+  else if (s.roll) st = `Névsorolvasás: ${Math.ceil(s.roll.t)} mp – a saját padodhoz!`;
+  else if (seen) st += ' · LÁT TÉGED';
+  else if (p.seated != null) st += ' · ülsz';
+  else if (crouch) st += ' · guggolsz';
+  setText($('tabaSt'), 'st', st);
+  const cls = 'pill ' + (sus > 0.05 || chasedMe ? 'caught' : seen ? 'seen' : 'safe');
+  if (cache.stCls !== cls) { cache.stCls = cls; $('status').className = cls; }
+  $('vignette').style.opacity = Math.min(1, Math.max(sus * 1.2, chasedMe ? 0.45 : 0)).toFixed(2);
+
+  // feladatok (a csapat közös készlete alapján)
+  const ps = Object.values(s.players);
+  const seeds = ps.reduce((a, q) => a + q.inv.seeds, 0) + (pl ? s.needSeeds : 0);
+  const vase = !!pl || ps.some((q) => q.inv.vase);
+  const water = ps.some((q) => q.inv.hasCan && q.inv.can > 0) || (pl && pl.water > 0.2);
+  const steps = [
+    [`Napraforgómag a kertből: ${Math.min(seeds, s.needSeeds)}/${s.needSeeds}`, seeds >= s.needSeeds],
+    ['Váza a padokon lévő táskákból', vase],
+    ['Kanna a párkányról, víz a palackból', water || !!pl],
+    ['Ülj be egy napos padba és ültess', !!pl],
+    [pl ? `Neveld fel: ${pct}% · víz ${Math.round(pl.water * 100)}% · nap ${Math.round((pl.sunNow || 0) * 100)}%` : 'Neveld fel a napraforgót', pl && pl.growth >= 1],
+    ['Vidd oda Fizika néninek', false],
+  ];
+  const gk = steps.map((x) => x[0] + x[1]).join('|');
+  if (cache.goals !== gk) {
+    cache.goals = gk;
+    const ul = $('goals');
+    ul.textContent = '';
+    let curSet = false;
+    for (const [txt, done] of steps) {
+      const li = document.createElement('li'); li.textContent = txt;
+      if (done) li.className = 'done'; else if (!curSet) { li.className = 'cur'; curSet = true; }
+      ul.appendChild(li);
+    }
+  }
+
+  // akció-célpont
+  target = null;
+  const list = finteractions(s, { ...p, x: me.x, z: me.z });
+  if (p.seated != null) {
+    const seatedActs = list.filter((i) => i.r > 5);
+    if (seatedActs.length) target = seatedActs[seatIdx % seatedActs.length];
+    $('btnUse').hidden = seatedActs.length < 2;
+    if (seatedActs.length > 1) setText($('btnUse'), 'use', 'MÁS');
+  } else {
+    let best = 1e9;
+    for (const it of list) {
+      if (it.r > 5) { if (!target && best === 1e9) target = it; continue; }
+      const dx = it.x - me.x, dz = it.z - me.z, d = Math.hypot(dx, dz);
+      if (d > it.r) continue;
+      let a = Math.atan2(dx, dz) - me.yaw;
+      a = Math.abs(((a + PI) % (2 * PI) + 2 * PI) % (2 * PI) - PI);
+      if (d > 0.6 && a > 1.15) continue;
+      const sc = d + a * 1.4;
+      if (sc < best) { best = sc; target = it; }
+    }
+    const thr = p.inv.ball > 0 || p.inv.phone > 0;
+    $('btnUse').hidden = !thr;
+    if (thr) setText($('btnUse'), 'use', p.inv.ball > 0 ? 'DOB' : 'LETESZ');
+  }
+  const prog = p.act ? Math.min(1, p.act.p) : 0;
+  setText($('promptText'), 'prompt', target ? target.label + (ctl.touch ? '' : '  [E]') : '');
+  $('prompt').hidden = !target && !prog;
+  $('promptBar').firstElementChild.style.width = prog * 100 + '%';
+  $('btnAct').disabled = !target && !prog;
+  $('btnAct').style.setProperty('--p', prog.toFixed(3));
+  setText($('actLabel'), 'act', prog ? '…' : target ? target.label : 'AKCIÓ');
+
+  // készlet
+  const base = invText(p.inv);
+  const inv = base + (pl && pl.carried === myId ? (base ? ' · ' : '') + 'Napraforgó' : '');
+  const hk = inv + '|' + (pl && pl.carried === myId);
+  if (cache.held !== hk) {
+    cache.held = hk;
+    const h = $('held');
+    h.hidden = !inv;
+    h.textContent = inv;
+    const sm = document.createElement('small');
+    sm.textContent = pl && pl.carried === myId ? (pl.growth >= 1 ? 'Vidd oda Fizika néninek!' : 'Ne lássa nálad! Tedd le egy napos padra.') : p.inv.axe ? 'Ne lássa nálad! Az okostáblánál használhatod.' : 'A tárgyak a tiéd – találatkor elveszíted őket.';
+    h.appendChild(sm);
+  }
+  const down = p.down > 0, seated = p.seated != null;
+  $('btnStand').hidden = !seated || down;
+  $('btnCover').hidden = !(seated && pl && pl.desk === p.seated && !pl.carried) || down;
+  $('btnCover').classList.toggle('on', !!(pl && pl.covered));
+  setText($('btnCover'), 'cover', pl && pl.covered ? 'FELFED' : 'ELTAKAR');
+  $('btnCrouch').hidden = seated || down;
+  $('btnSprint').hidden = seated || down;
+  $('stamina').hidden = seated || down;
+  $('stamina').firstElementChild.style.width = Math.round(stamina * 100) + '%';
+  $('btnPing').hidden = ps.length < 2;
+  giveTo = null;
+  if (!down && !seated && invText(p.inv)) for (const q of ps) if (q.id !== myId && q.down <= 0 && Math.hypot(q.x - me.x, q.z - me.z) < 1.6) { giveTo = q.id; break; }
+  $('btnGive').hidden = !giveTo;
+
+  // buborék, névtáblák
+  const bub = $('bubble');
+  if (T.say && !T.hidden) {
+    const pos = F.project(F.taba.position.x, T.sit ? 1.75 : 2.05, F.taba.position.z);
+    bub.hidden = !pos.ok;
+    setText(bub, 'say', T.say);
+    bub.classList.toggle('angry', ['run', 'aim', 'swing', 'roll'].includes(T.st));
+    bub.style.transform = `translate(${pos.x.toFixed(0)}px, ${pos.y.toFixed(0)}px) translate(-50%, -100%)`;
+  } else bub.hidden = true;
+  for (const [id, q] of Object.entries(s.players)) {
+    if (id === myId) continue;
+    let el = tags.get(id);
+    if (!el) { el = document.createElement('div'); el.className = 'tag'; el.style.color = '#' + studentLook(q.skin, q.seat).shirt.toString(16).padStart(6, '0'); $('labels').appendChild(el); tags.set(id, el); }
+    const av = F.avatars.get(id);
+    const pos = av ? F.project(av.position.x, 1.85, av.position.z) : { ok: false };
+    el.hidden = !pos.ok;
+    if (pos.ok) { const n = q.name + (q.down > 0 ? ' (kiütve)' : ''); if (el.textContent !== n) el.textContent = n; el.style.transform = `translate(${pos.x.toFixed(0)}px, ${pos.y.toFixed(0)}px) translate(-50%, -100%)`; }
+  }
+  for (const [id, el] of tags) if (!s.players[id]) { el.remove(); tags.delete(id); }
+
+  // feszültség és hangok
+  const now = performance.now();
+  const danger = Math.max(sus, chasedMe ? 0.9 : 0, (p.act && (T.st === 'warn' || T.st === 'glance' || seen)) ? 0.5 : 0);
+  tension = Math.max(danger, T.weapon !== 'none' ? 0.75 : 0, (s.alarm || 0) > 0 ? 1 : 0, s.roll ? 0.6 : 0, inGarden(me.x) ? 0.35 : 0);
+  if (danger > 0.15 && now - (cache.beat || 0) > 750 - 380 * Math.min(1, danger)) { cache.beat = now; play('heart'); }
+  if (s.t <= 60 && Math.ceil(s.t) !== cache.tick) { cache.tick = Math.ceil(s.t); play('tick'); }
+  if ((s.alarm || 0) > 0 && now - (cache.alarm || 0) > 900) { cache.alarm = now; play('alarm'); }
+  if (s.phone && s.phone.ring && now - lastRing > 900) { lastRing = now; play('ring'); }
+}
+
+function frameF(dt, t, now) {
+  const s = view, mp = s.players[myId], F = getF();
+  const cine = s.phase !== 'play';
+  $('hud').classList.toggle('cine', cine);
+  $('cineBars').hidden = !cine;
+  if (cine) {
+    ctl.enabled = false;
+    $('bubble').hidden = true;
+    if (s.teacher.say) {
+      const pos = F.project(F.taba.position.x, 2.05, F.taba.position.z);
+      const bub = $('bubble'); bub.hidden = !pos.ok; setText(bub, 'say', s.teacher.say);
+      bub.style.transform = `translate(${pos.x.toFixed(0)}px, ${pos.y.toFixed(0)}px) translate(-50%, -100%)`;
+    }
+    const cap = s.phase === 'outro' && s.outroT < 10.5 && s.outroT > 4.5 ? 'Gyorsított felvétel, reggeltől délutánig – figyeld a napraforgó fejét és a napot' : s.phase === 'intro' ? 'Fizika – Napraforgó' : '';
+    setText($('cineCap'), 'cap', cap);
+    music('play', 0.15, false, 'fizika');
+    F.update(s, myId, dt, t, me);
+    return;
+  }
+  if (!mgOpen()) ctl.enabled = true;
+  ctl.update();
+  me.yaw = ctl.yaw; me.pitch = ctl.pitch;
+  const locked = mp && (mp.seated != null || mp.down > 0);
+  if (locked) {
+    me.x += (mp.x - me.x) * Math.min(1, dt * 10);
+    me.z += (mp.z - me.z) * Math.min(1, dt * 10);
+    if (crouch) setCrouch(false);
+    if (sprint) { sprint = false; $('btnSprint').classList.remove('on'); }
+  } else if (ctl.move.x || ctl.move.y) {
+    const run = sprint && stamina > 0.05 && !crouch;
+    const sp = (crouch ? 1.7 : run ? 5.0 : 3.3) * dt;
+    const f = ctl.move.y, r = ctl.move.x;
+    [me.x, me.z] = fcollide(me.x + (Math.sin(me.yaw) * f - Math.cos(me.yaw) * r) * sp, me.z + (Math.cos(me.yaw) * f + Math.sin(me.yaw) * r) * sp, me.x, me.z);
+    stamina = run ? Math.max(0, stamina - dt / 4) : Math.min(1, stamina + dt / 6);
+    if (run && stamina <= 0.05) { sprint = false; $('btnSprint').classList.remove('on'); }
+    walkT += dt * (run ? 13 : 9) * Math.min(1, Math.hypot(f, r));
+    me.bob = Math.sin(walkT) * (run ? 0.04 : 0.025);
+  } else { me.bob *= 0.85; stamina = Math.min(1, stamina + dt / 6); }
+  if (now - lastPos > 66) { lastPos = now; send({ t: 'pos', x: me.x, z: me.z, yaw: me.yaw, pitch: me.pitch, c: crouch ? 1 : 0 }); }
+  const eye = mp && mp.seated != null ? 1.18 : crouch ? 0.92 : EYE;
+  me.eye = (me.eye ?? EYE) + (eye - (me.eye ?? EYE)) * Math.min(1, dt * 10);
+  updateHudF();
+  music('play', tension, s.t <= 60, 'fizika');
+  F.update(s, myId, dt, t, me);
+}
+
 function updateLobby() {
   const key = Object.values(view.players).map((p) => p.seat + p.name + p.skin).join('|');
   if (cache.lobby === key) return;
@@ -765,7 +1082,7 @@ function tickSim(now) {
   if (!s) return;
   while (dt > 0) { const h = Math.min(0.05, dt); s.step(h); dt -= h; }
   if (s === preview && preview.s.phase !== 'play') { preview = makePreview(); view = preview.s; }
-  if (role === 'host' && net && now - lastSnap > (sim.s.phase === 'play' ? 90 : 300)) {
+  if (role === 'host' && net && now - lastSnap > (['play', 'intro', 'outro'].includes(sim.s.phase) ? 90 : 300)) {
     lastSnap = now;
     net.broadcast({ t: 's', s: sim.s });
   }
@@ -780,10 +1097,13 @@ function frame(now) {
   tickSim(now);
   if (sim) view = sim.s;
 
-  if (role && view.phase === 'play' && mode !== 'play' && view.players[myId]) enterPlay();
+  const live = view.phase === 'play' || view.phase === 'intro' || view.phase === 'outro';
+  if (role && live && mode !== 'play' && view.players[myId]) enterPlay();
   else if (role && (view.phase === 'won' || view.phase === 'lost') && mode === 'play') enterEnd();
 
-  if (mode === 'play') {
+  if (mode === 'play' && isF()) {
+    frameF(dt, t, now);
+  } else if (mode === 'play') {
     ctl.update();
     const mp = view.players[myId];
     if (faceT > 0) {
@@ -833,11 +1153,16 @@ function frame(now) {
         ? { x: 0.95, z: -1.0, yaw: PI, pitch: -0.12, bob: -0.3 }
         : { x: 0, z: -0.5, yaw: PI, pitch: -0.5, bob: 0.25 };
     } else cam = { x: Math.sin(t * 0.12) * 2.6, z: 5.2, yaw: PI + Math.sin(t * 0.12) * 0.25, pitch: -0.1, bob: 0 };
-    world.setPreview(mode === 'shop' ? shopSel : null);
     music(mode === 'end' ? 'off' : 'menu');
-    world.update(view, myId, dt, t, cam);
+    if (isF()) {
+      // Fizika-szoba váróterme / vége: lassan pásztázó kamera a hosszú teremben
+      getF().update(view, myId, dt, t, { x: Math.sin(t * 0.12) * 2.4, z: 7.3, yaw: PI + Math.sin(t * 0.12) * 0.25, pitch: -0.08, bob: 0 });
+    } else {
+      world.setPreview(mode === 'shop' ? shopSel : null);
+      world.update(view, myId, dt, t, cam);
+    }
   }
-  world.render();
+  (isF() ? getF() : world).render();
 }
 requestAnimationFrame(frame);
 

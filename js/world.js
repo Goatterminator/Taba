@@ -4,20 +4,20 @@ import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projSta
 
 const PI = Math.PI;
 const matCache = new Map();
-function mat(color, opt) {
+export function mat(color, opt) {
   const key = color + JSON.stringify(opt || 0);
   if (!matCache.has(key)) matCache.set(key, new THREE.MeshLambertMaterial({ color, ...opt }));
   return matCache.get(key);
 }
 const geoCache = new Map();
-function boxGeo(w, h, d) {
+export function boxGeo(w, h, d) {
   const k = `${w}|${h}|${d}`;
   if (!geoCache.has(k)) geoCache.set(k, new THREE.BoxGeometry(w, h, d));
   return geoCache.get(k);
 }
-function box(w, h, d, color, opt) { return new THREE.Mesh(boxGeo(w, h, d), mat(color, opt)); }
-function put(parent, obj, x, y, z) { obj.position.set(x, y, z); parent.add(obj); return obj; }
-function canvasTex(w, h, draw) {
+export function box(w, h, d, color, opt) { return new THREE.Mesh(boxGeo(w, h, d), mat(color, opt)); }
+export function put(parent, obj, x, y, z) { obj.position.set(x, y, z); parent.add(obj); return obj; }
+export function canvasTex(w, h, draw) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const g = c.getContext('2d');
@@ -27,7 +27,7 @@ function canvasTex(w, h, draw) {
   t.userData = { c, g };
   return t;
 }
-const lerpAngle = (a, b, k) => {
+export const lerpAngle = (a, b, k) => {
   let d = (b - a) % (2 * PI);
   if (d > PI) d -= 2 * PI;
   if (d < -PI) d += 2 * PI;
@@ -257,7 +257,7 @@ export function makeHuman(o) {
   return g;
 }
 
-function poseHuman(h, mode, t, sit, count = 0) {
+export function poseHuman(h, mode, t, sit, count = 0) {
   const { body, legs, arms, head, mouth, hand } = h.userData;
   let ly = 0, la = [0, 0], aa = [0, 0], az = [0, 0], hx = 0, hy = 0, by = 0, bz = 0, bx = 0, mo = 1;
   const w = Math.sin(t * 9);
@@ -287,6 +287,9 @@ function poseHuman(h, mode, t, sit, count = 0) {
     case 'laugh': by = Math.abs(Math.sin(t * 15)) * 0.035; bx = -0.12; hx = -0.35 + Math.sin(t * 15) * 0.08; aa = [-0.6, -0.6]; az = [0.25, -0.25]; mo = 3; break;
     case 'gasp': aa = [-2.75, -2.75]; az = [0.4, -0.4]; mo = 3.5; break;
     case 'watch': aa = [-0.9, -0.9]; break;
+    case 'aim': aa = [-1.5, -1.45]; az = [-0.2, 0.25]; hx = 0.05; break;
+    case 'swing': aa = [0, -2.9 + Math.min(1, (t * 6) % 1) * 2.6]; az = [0, 0.2]; mo = 3; break;
+    case 'run': la = [w * 0.9, -w * 0.9]; aa = [-w * 0.8, w * 0.8]; bx = 0.12; break;
     case 'quiz': aa = [-1.5, 0.2]; az = [0, 0]; hx = 0.05; mo = 1 + Math.abs(Math.sin(t * 8)) * 1.5; break;
     case 'knock': aa = [0, -1.6 + Math.sin(t * 14) * 0.5]; hx = 0.1; mo = 2; break;
     case 'crouch': ly = -0.42; bx = 0.35; la = [-1.25, -1.25]; aa = [-0.7, -0.7]; break;
@@ -510,7 +513,7 @@ export function makeItem(type) {
   return g;
 }
 
-function makeChair() {
+export function makeChair() {
   const ch = new THREE.Group();
   put(ch, box(0.5, 0.07, 0.48, 0x2c3440), 0, 0.5, 0);
   put(ch, box(0.5, 0.55, 0.07, 0x2c3440), 0, 0.85, -0.24);
@@ -519,7 +522,7 @@ function makeChair() {
   put(ch, box(0.06, 0.04, 0.5, 0x444444), 0, 0.03, 0);
   return ch;
 }
-const NPC_LOOKS = [
+export const NPC_LOOKS = [
   { shirt: 0x6b7280, pants: 0x1f2937, hair: 0x3b2a1a },
   { shirt: 0xb45309, pants: 0x334155, hair: 0x111111 },
   { shirt: 0x0f766e, pants: 0x1e293b, hair: 0xc79a3a },
@@ -530,7 +533,7 @@ const NPC_LOOKS = [
   { shirt: 0x7c2d12, pants: 0x111827, hair: 0xc79a3a },
   { shirt: 0x334155, pants: 0x3f3f46, hair: 0x111111 },
 ];
-const NPC_IDLE = ['npcWrite', 'npcSleep', 'npcPhone', 'npcLook', 'npcWrite', 'npcLook', 'npcPhone', 'npcWrite', 'npcSleep'];
+export const NPC_IDLE = ['npcWrite', 'npcSleep', 'npcPhone', 'npcLook', 'npcWrite', 'npcLook', 'npcPhone', 'npcWrite', 'npcSleep'];
 
 // ---- világ --------------------------------------------------------------
 export class World {

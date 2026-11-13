@@ -86,6 +86,14 @@ const SOUNDS = {
   knock: () => { for (let i = 0; i < 3; i++) { tone(130, 0.07, { type: 'sine', vol: 0.4, to: 70, delay: i * 0.16 }); noise(0.04, { vol: 0.15, freq: 400, q: 1, delay: i * 0.16 }); } },
   quiz: () => { tone(659, 0.14, { type: 'triangle', vol: 0.2 }); tone(523, 0.14, { type: 'triangle', vol: 0.2, delay: 0.15 }); tone(392, 0.3, { type: 'triangle', vol: 0.2, delay: 0.3 }); },
   goal: () => [659, 784, 988].forEach((f, i) => tone(f, 0.16, { type: 'triangle', vol: 0.18, delay: i * 0.09 })),
+  hiss: () => { noise(0.45, { vol: 0.35, freq: 5000, q: 0.4, type: 'highpass' }); tone(1800, 0.05, { type: 'square', vol: 0.05 }); },
+  zip: () => { for (let i = 0; i < 6; i++) noise(0.03, { vol: 0.12, freq: 3000 + i * 300, q: 2, delay: i * 0.035 }); },
+  thwack: () => { tone(180, 0.12, { type: 'square', vol: 0.3, to: 60 }); noise(0.08, { vol: 0.4, freq: 1200, q: 0.7 }); },
+  boom: () => { noise(0.9, { vol: 0.5, freq: 160, q: 0.5, type: 'lowpass' }); tone(70, 0.6, { type: 'sine', vol: 0.5, to: 30 }); },
+  launch: () => { noise(0.5, { vol: 0.3, freq: 900, q: 0.6 }); tone(300, 0.4, { type: 'sawtooth', vol: 0.08, to: 120 }); },
+  smash: () => { noise(0.6, { vol: 0.5, freq: 3000, q: 0.3 }); tone(90, 0.3, { type: 'square', vol: 0.25, to: 40 }); for (let i = 0; i < 5; i++) tone(2000 + Math.random() * 2000, 0.06, { type: 'triangle', vol: 0.08, delay: 0.05 + i * 0.07 }); },
+  chase: () => { tone(220, 0.15, { type: 'sawtooth', vol: 0.15 }); tone(233, 0.3, { type: 'sawtooth', vol: 0.15, delay: 0.15 }); },
+  ping: () => tone(1320, 0.12, { type: 'sine', vol: 0.15 }),
   bell: () => { for (let i = 0; i < 10; i++) tone(1568, 0.09, { type: 'square', vol: 0.09, delay: i * 0.1 }); },
   strike: () => { tone(196, 0.5, { type: 'sawtooth', vol: 0.3 }); tone(207, 0.5, { type: 'sawtooth', vol: 0.3 }); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.22, delay: i * 0.13 })),
@@ -147,7 +155,34 @@ function mKick(t, vol) {
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.2);
   o.connect(g).connect(M.gain); o.start(t); o.stop(t + 0.22);
 }
+// Fizika-téma: e-moll, pengetős, „settenkedő” basszus
+const F_BASS = [
+  [0, _, 7, _, 0, _, 7, _, 3, _, 10, _, 3, _, 2, _],
+  [0, _, 7, _, 0, _, 7, _, 5, _, 12, _, 5, _, 3, _],
+  [-4, _, 3, _, -4, _, 3, _, -2, _, 5, _, -2, _, -1, _],
+  [-5, _, 2, _, -5, _, 2, _, -1, _, 6, _, -1, _, -2, _],
+];
+const F_LEAD = [
+  [12, _, _, 15, _, _, 14, _, 12, _, _, _, 10, _, 11, _],
+  [_, _, _, _, 12, _, 15, _, 19, _, 17, _, 15, _, _, _],
+  [8, _, _, 12, _, _, 11, _, 8, _, _, _, 7, _, 8, _],
+  [7, _, _, 11, _, _, 14, _, 13, _, 11, _, 10, _, _, _],
+];
+const E2 = 82.41, E4 = 329.63;
+function playStepF(step, t, dur) {
+  const bar = (step >> 4) % 4, i = step & 15, ten = M.tension;
+  const b = F_BASS[bar][i];
+  if (b != null) mNote(st(E2, b), t, dur * 0.9, { type: 'square', vol: 0.1, lp: 700 + ten * 900 });
+  if (i === 0 || i === 8 || (ten > 0.4 && (i === 6 || i === 14))) mKick(t, 0.26);
+  if (i === 4 || i === 12) mNoise(t, 0.05, 0.05, 2500, 'bandpass');
+  if (i % 2 === 1 && ten > 0.3) mNoise(t, 0.02, 0.02, 9000);
+  const l = F_LEAD[bar][i];
+  if (l != null && (ten > 0.15 || bar % 2 === 0)) mNote(st(E4, l - 12), t, 0.16, { type: 'triangle', vol: 0.05 + ten * 0.03 });
+  if (ten > 0.7 && i % 2 === 0) mNote(st(E4, (i % 4 ? 1 : 0)), t, dur * 0.7, { type: 'sawtooth', vol: 0.02, lp: 2000 });
+  if (M.hurry && i % 4 === 0) mNote(st(E4, 12), t, 0.05, { type: 'square', vol: 0.03 });
+}
 function playStep(step, t, dur) {
+  if (M.theme === 'fizika' && M.mode === 'play') return playStepF(step, t, dur);
   const bar = (step >> 4) % 4, i = step & 15;
   const ten = M.tension;
   if (M.mode === 'menu') {
@@ -175,7 +210,7 @@ function sched() {
   if (muted || !M.on || M.mode === 'off' || document.hidden) { M.next = ctx.currentTime + 0.12; return; }
   if (M.next < ctx.currentTime) M.next = ctx.currentTime + 0.05;
   while (M.next < ctx.currentTime + 0.25) {
-    const bpm = M.mode === 'menu' ? 76 : 98 + 16 * M.tension + (M.hurry ? 14 : 0);
+    const bpm = M.mode === 'menu' ? 76 : (M.theme === 'fizika' ? 108 + 30 * M.tension : 98 + 16 * M.tension) + (M.hurry ? 14 : 0);
     const dur = 60 / bpm / 4;
     playStep(M.step, M.next, dur);
     M.next += dur;
@@ -183,9 +218,9 @@ function sched() {
   }
 }
 // mode: 'menu' | 'play' | 'off'; tension: 0..1
-export function music(mode, tension = 0, hurry = false) {
-  if (mode !== M.mode && (mode === 'play' || M.mode === 'play')) M.step = 0;
-  M.mode = mode; M.hurry = hurry;
+export function music(mode, tension = 0, hurry = false, theme = 'tori') {
+  if ((mode !== M.mode && (mode === 'play' || M.mode === 'play')) || theme !== M.theme) M.step = 0;
+  M.mode = mode; M.hurry = hurry; M.theme = theme;
   M.tension += (Math.max(0, Math.min(1, tension)) - M.tension) * 0.05;
   if (!M.timer && ctx) {
     M.gain = ctx.createGain();

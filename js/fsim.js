@@ -425,6 +425,7 @@ export class FSim {
     this.mode = 'chase';
     T.weapon = s.hits >= 2 ? 'rocket' : 'spoon';
     this.chase = { pid: p.id, lx: p.x, lz: p.z, lost: 0, fire: 1.4, swing: 0, repath: 0, path: [] };
+    T.target = p.id;
     if (why === 'absent') this.say(line('f_absent', { n: p.name }), 3, 'angry');
     else this.say(line(T.weapon === 'rocket' ? 'f_chaseRocket' : 'f_chase', { n: p.name }), 3, 'yell');
     this.emit({ e: 'evt', t: T.weapon === 'rocket' ? 'Rakétavető!' : 'Fizika néni üldöz', d: T.weapon === 'rocket' ? `${p.name}, fuss és térj ki a lövedékek elől!` : `${p.name}, a fakanál elől: vissza a padodba, vagy fuss!`, pid: p.id });
@@ -435,7 +436,7 @@ export class FSim {
     if (!this.chase) return;
     this.chase = null;
     this.mode = 'class';
-    T.st = 'walk';
+    T.st = 'walk'; T.target = null; T.weapon = 'none';
     if (!silent) this.act = null;
   }
   hit(p, kind) {

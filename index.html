@@ -51,6 +51,28 @@
     <button id="btnUse" class="rb" hidden>DOB</button>
     <button id="btnDrop" class="rb" hidden>ELDOB</button>
     <button id="btnCrouch" class="rb">GUGGOL</button>
+    <button id="btnStand" class="rb" hidden>FELÁLL</button>
+    <button id="btnCover" class="rb" hidden>ELTAKAR</button>
+    <button id="btnSprint" class="rb" hidden>FUT</button>
+    <button id="btnGive" class="rb" hidden>ÁTAD</button>
+    <button id="btnPing" class="rb" hidden>JELEZ</button>
+    <div id="stamina" hidden><div></div></div>
+    <div id="fade"></div>
+    <div id="cineBars" hidden><div class="cap" id="cineCap"></div><div class="disc">A játék nem támogatja a káros szerek fogyasztását és a fegyverek használatát – ezek csak a játékélmény miatt szerepelnek.</div></div>
+
+    <!-- Kerti kísérletek -->
+    <div id="mgUI" hidden>
+      <div class="mgCard">
+        <div class="mgHead"><b id="mgTitle"></b><button id="mgQuit" class="link">Feladom</button></div>
+        <p id="mgInfo"></p>
+        <canvas id="mgCanvas"></canvas>
+        <div class="mgRow">
+          <button id="mgBtnL" class="btn small">◀</button>
+          <button id="mgBtn" class="btn small primary">MOST</button>
+          <button id="mgBtnR" class="btn small">▶</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Felelés: Taba kérdez, válaszolni kell -->
     <div id="quizUI" hidden>
@@ -87,6 +109,10 @@
       <label class="field">Neved
         <input id="name" maxlength="14" autocomplete="off" placeholder="Diák">
       </label>
+      <div class="row modes">
+        <button id="modeTori" class="btn mode">Töri – Taba<small>szabotáld az órát</small></button>
+        <button id="modeFizika" class="btn mode">Fizika – Napraforgó<small>bizonyítsd be az igazat</small></button>
+      </div>
       <div class="row">
         <button id="btnSolo" class="btn">Egyedül játszom</button>
         <button id="btnHost" class="btn primary">Szoba létrehozása</button>
@@ -176,6 +202,8 @@
         <li><b>Kombó:</b> ha gyorsan egymás után szívatsz, minden következő több pontot ér.</li>
         <li><b>Váratlan események:</b> Windows-frissítés, anyukája telefonál, a hangosbemondó kihívja – ilyenkor Taba figyelme máshol jár. Használd ki!</li>
         <li>Minél idegesebb Taba (pirosodik a feje), annál gyorsabban mozog és annál gyakrabban néz fel.</li>
+        <li><b>Fizika – Napraforgó mód:</b> Fizika néni azt írta a táblára, hogy a napraforgó a nappal ellentétesen forog. Szökj ki a kertbe, a kísérletekért kapsz magot (Fizika néni fakanállal üldöz, másodszor után rakétavetővel), keresd meg a táskákban a vázát és a palackot, a párkányon a kannát, ülj be egy napos padba, és neveld fel a napraforgót úgy, hogy ne vegye észre. A kész növényt vidd oda neki. Három találat, vagy 15 perc után vége.</li>
+        <li>A játék nem támogatja a káros szerek fogyasztását és a fegyverek használatát – ezek csak a játékélmény miatt szerepelnek.</li>
         <li><b>Bolt:</b> az óra végén érméket kapsz, ezekből skineket vehetsz a karakterednek.</li>
         <li>Kapcsold le a villanyt, húzd ki a projektort, töröld le a táblát, lopd el a laptopját (és dobd ki az ablakon), tegyél rajzszöget a székére…</li>
         <li>A szekrényekben és a padokon <b>tárgyak</b> vannak: bűzbomba, pendrive, csörgő telefon, ragasztó – és valahol egy <b>airsoft AK</b>. Lődd szét a termet, de ha <b>Tabát eltalálod, azonnal vége</b>.</li>
