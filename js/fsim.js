@@ -2,10 +2,10 @@
 import {
   F_TIME, F_LIVES, ROOM, GARDEN, DOOR, P, DESKS, seatPos, PLAYER_DESKS, EMPTY_DESKS, SNITCH_DESK,
   makeBags, JUNK, COVER, TOBS, NAV, AISLES, FRONT_Z, BACK_Z, interactions, collide, inGarden, walkable, sunAt,
-} from './fdata.js?v=13';
-import { skinById } from './data.js?v=13';
-import { line } from './lines.js?v=13';
-import './flines.js?v=13';
+} from './fdata.js?v=14';
+import { skinById } from './data.js?v=14';
+import { line } from './lines.js?v=14';
+import './flines.js?v=14';
 
 const PI = Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -489,7 +489,13 @@ export class FSim {
     const d = dist(T.x, T.z, p.x, p.z);
     const hidden = p.crouch && P.bushes.some((b) => dist(p.x, p.z, b.x, b.z) < b.r) && d > 1.6;
     const sees = same && !hidden && d < 18 && (d < 2 || !COVER.some((b) => p.crouch && segHits(T.x, T.z, p.x, p.z, b)));
-    if (sees) { c.lx = p.x; c.lz = p.z; c.lost = 0; } else c.lost += dt;
+    if (sees) { c.lx = p.x; c.lz = p.z; c.lost = 0; c.via = null; }
+    else {
+      c.lost += dt;
+      // ha a diák átment a másik helyiségbe, az ajtón át követi
+      if (!same && !c.via) { c.via = true; c.lx = inGarden(T.x) ? 5.7 : 4.4; c.lz = DOOR.z; c.repath = 0; }
+      else if (c.via && dist(T.x, T.z, c.lx, c.lz) < 0.5 && !same) { c.lx = inGarden(p.x) ? 6.6 : 3.6; c.lz = DOOR.z; c.repath = 0; }
+    }
     const rocket = T.weapon === 'rocket';
     // mozgás
     let tx = c.lx, tz = c.lz;
@@ -508,9 +514,20 @@ export class FSim {
         left -= m;
         this.wantYaw = yawTo(T.x, T.z, w.x, w.z);
       }
+      // az útvonal végén (pl. ha a diák padok közé vagy asztal mellé bújt) egyenesen odamegy, ütközéssel
+      const fd = dist(T.x, T.z, tx, tz);
+      if (left > 0 && !c.path.length && fd > 0.7) {
+        const m = Math.min(left, fd - 0.6);
+        const [nx, nz] = collide(T.x + ((tx - T.x) / fd) * m, T.z + ((tz - T.z) / fd) * m, T.x, T.z, 0.3);
+        if (Math.hypot(nx - T.x, nz - T.z) < m * 0.2) c.repath = 0; // beakadt: új útvonal
+        T.x = nx; T.z = nz;
+        this.wantYaw = yawTo(T.x, T.z, tx, tz);
+      }
     }
     if (sees) this.wantYaw = yawTo(T.x, T.z, p.x, p.z);
     T.st = c.swing > 0 ? 'swing' : rocket && sees && d > 2.2 ? 'aim' : 'run';
+    // elvesztette: körbenéz ott, ahol utoljára látta
+    if (!sees && dist(T.x, T.z, c.lx, c.lz) < 0.8) { T.st = 'look'; this.wantYaw = T.yaw + 1.2 * Math.sin(c.lost * 2.2) * dt * 4 + 2.5 * dt; }
     // fakanál
     if (c.swing > 0) {
       c.swing -= dt;

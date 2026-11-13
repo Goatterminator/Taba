@@ -1,14 +1,14 @@
 // Fő vezérlés: menük, játékhurok, hálózat összekötése a szimulációval és a megjelenítéssel.
-import { World, studentLook, DRAW_COLORS } from './world.js?v=13';
-import { Sim } from './sim.js?v=13';
-import { Controls } from './controls.js?v=13';
-import { createNet, makeCode } from './net.js?v=13';
-import { play, unlockAudio, setMuted, music, setMusicEnabled } from './audio.js?v=13';
-import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js?v=13';
-import { FSim } from './fsim.js?v=13';
-import { FWorld } from './fworld.js?v=13';
-import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js?v=13';
-import { openMg, closeMg, mgOpen } from './minigames.js?v=13';
+import { World, studentLook, DRAW_COLORS } from './world.js?v=14';
+import { Sim } from './sim.js?v=14';
+import { Controls } from './controls.js?v=14';
+import { createNet, makeCode } from './net.js?v=14';
+import { play, unlockAudio, setMuted, music, setMusicEnabled } from './audio.js?v=14';
+import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js?v=14';
+import { FSim } from './fsim.js?v=14';
+import { FWorld } from './fworld.js?v=14';
+import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js?v=14';
+import { openMg, closeMg, mgOpen } from './minigames.js?v=14';
 
 const $ = (id) => document.getElementById(id);
 const ICON_SOUND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';

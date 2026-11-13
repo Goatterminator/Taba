@@ -1,5 +1,5 @@
 // Offline gyorsítótár: a játék telepítve internet nélkül is elindul (egyjátékos mód).
-const CACHE = 'taba-v13';
+const CACHE = 'taba-v14';
 const ASSETS = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/main.js', 'js/world.js', 'js/sim.js', 'js/data.js', 'js/lines.js', 'js/fsim.js', 'js/fworld.js', 'js/fdata.js', 'js/flines.js', 'js/minigames.js', 'js/controls.js', 'js/net.js', 'js/audio.js',
