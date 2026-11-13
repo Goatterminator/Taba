@@ -1,5 +1,5 @@
 // Offline gyorsítótár: a játék telepítve internet nélkül is elindul (egyjátékos mód).
-const CACHE = 'taba-v9';
+const CACHE = 'taba-v10';
 const ASSETS = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest',
   'js/main.js', 'js/world.js', 'js/sim.js', 'js/data.js', 'js/lines.js', 'js/fsim.js', 'js/fworld.js', 'js/fdata.js', 'js/flines.js', 'js/minigames.js', 'js/controls.js', 'js/net.js', 'js/audio.js',
@@ -18,7 +18,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.includes('/api/')) return;
   e.respondWith(
-    fetch(req).then((res) => {
+    fetch(req, { cache: 'no-cache' }).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || caches.match('index.html')))

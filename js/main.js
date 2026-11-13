@@ -273,7 +273,10 @@ let installEvt = null;
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
 $('btnInstall').onclick = async () => { if (installEvt) { installEvt.prompt(); installEvt = null; $('btnInstall').hidden = true; } };
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => r.update()).catch(() => {});
+  // ha új verzió települt, egyszer újratöltjük, hogy ne a régi játék fusson
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && mode === 'menu') { reloaded = true; location.reload(); } });
 }
 
 function enterLobby() {
