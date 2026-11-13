@@ -152,7 +152,9 @@ export class Sim {
     if (this.hunt === id) this.hunt = null;
     this.emit({ e: 'toast', m: `${p.name} kilépett`, k: 'info' });
   }
-  scale() { return 1 + 0.45 * (Math.max(1, Object.keys(this.s.players).length) - 1); }
+  // létszámfüggő nehézség: k = 0 (egyedül) … 3 (négyen)
+  k() { return Math.min(3, Math.max(0, Object.keys(this.s.players).length - 1)); }
+  scale() { return 1 + 0.8 * this.k(); }
 
   // ---- óra indítása ----------------------------------------------------
   start() {
@@ -164,7 +166,7 @@ export class Sim {
       laptop: 'desk', lapBroken: false, win: false, chairTrap: null, deskTrap: null,
       clock: true, plant: true, globe: true, glass: [1, 1],
       lockers: [0, 0, 0], cd: {}, cloud: null, winUpdate: null, endKind: '', gradesDone: false, alarmUsed: false, alarm: 0, snitch: null, doorLocked: false, quiz: null,
-      goals: [...GOALS].sort(() => Math.random() - 0.5).slice(0, 3).map((g) => ({ id: g.id, text: g.text, done: false })),
+      goals: [...GOALS].sort(() => Math.random() - 0.5).slice(0, 3 + (Object.keys(old).length > 2 ? 1 : 0)).map((g) => ({ id: g.id, text: g.text, done: false })),
       stats: { slips: 0, farts: 0, glued: 0, snakes: 0, stinks: 0, megas: 0, shots: 0, broken: 0, lapOut: 0, draws: 0, doodles: 0, wcHunts: 0, planes: 0, events: 0, maxCombo: 0, locks: 0, grades: 0, quizOk: 0, dark: 0 },
       taba: { x: P.chair.x, z: P.chair.z, yaw: 0, st: 'laptop', fov: 1.0, range: 2.2, say: '', sit: true, count: 0, stress: 0, chair: 0, green: 0, hidden: false },
       players: old, items: makeItems(),
@@ -1059,7 +1061,7 @@ export class Sim {
         if (a.pre <= 0) this.say(line('paLeave'), 3);
       } else if (a.phase === 'go') {
         T.st = a.kind === 'drag' ? 'drag' : 'walk'; vis = 'full';
-        let left = (a.kind === 'fix' || a.kind === 'search' || a.kind === 'away' ? D.rush : D.walk) * (1 + 0.3 * T.stress) * dt;
+        let left = (a.kind === 'fix' || a.kind === 'search' || a.kind === 'away' ? D.rush : D.walk) * (1 + 0.3 * T.stress) * (1 + 0.07 * this.k()) * dt;
         while (left > 0 && a.path.length) {
           const t = a.path[0];
           const d = dist(T.x, T.z, t.x, t.z);
@@ -1126,7 +1128,7 @@ export class Sim {
           if (a.g <= 0) {
             if (a.g > -D.warn) { T.st = 'warn'; }
             else if (a.g > -D.warn - D.glanceLen) { T.st = 'glance'; vis = 'full'; this.wantYaw = yawTo(T.x, T.z, 0, 1.2); }
-            else { a.g = rnd(...D.glance) * (1 - 0.35 * T.stress) * (this.calmT > 0 ? 1.6 : 1); this.wantYaw = a.spot.yaw; }
+            else { a.g = rnd(...D.glance) * (1 - 0.35 * T.stress) * (1 - 0.12 * this.k()) * (this.calmT > 0 ? 1.6 : 1); this.wantYaw = a.spot.yaw; }
           }
         }
         if (a.t <= 0 && this.act === a) this.finish(a);
@@ -1140,7 +1142,7 @@ export class Sim {
 
     // látómező
     if (vis === 'full') { T.fov = 1.55; T.range = 14; }
-    else if (vis === 'busy') { T.fov = D.busyFov; T.range = D.busyRange; }
+    else if (vis === 'busy') { T.fov = D.busyFov + 0.06 * this.k(); T.range = D.busyRange + 0.45 * this.k(); }
     else { T.fov = 1.0; T.range = 0; }
     if (isDark(s) && T.range > D.darkRange && !inWC(T.x)) T.range = D.darkRange;
   }
@@ -1300,7 +1302,7 @@ export class Sim {
       const held = p.held != null ? s.items[p.held] : null;
       if (p.drawing && (dist(p.x, p.z, P.laptop.x, P.laptop.z) > 2.4 || s.laptop !== 'desk' || s.drawOn)) p.drawing = false;
       const sus = !!p.act || p.drawing || p.hot > 0 || (held && ITEMS[held.type].contraband) || (pWC && tabaWC);
-      if (seen && sus && p.immune <= 0) p.sus += (dt / (pWC ? 0.3 : D.susFill)) * (p.trust > 0 ? 0.6 : p.watch > 0 ? 1.5 : 1);
+      if (seen && sus && p.immune <= 0) p.sus += (dt / ((pWC ? 0.3 : D.susFill) * (1 - 0.08 * this.k()))) * (p.trust > 0 ? 0.6 : p.watch > 0 ? 1.5 : 1);
       else p.sus = Math.max(0, p.sus - dt / 1.2);
       if (p.sus >= 1) { this.strike(p); if (s.phase !== 'play' || this.endT > 0) return; }
     }
