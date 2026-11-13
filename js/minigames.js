@@ -24,7 +24,7 @@ export function openMg(kind, hard, done) {
   cur = st;
   const finish = (ok) => { if (!cur || cur !== st) return; st.won = ok; info.textContent = ok ? 'Sikerült – kaptál egy magot!' : 'Nem sikerült. Próbáld újra később.'; setTimeout(() => { if (cur === st) { closeMg(); done(ok); } }, 700); st.done = true; };
   $('mgQuit').onclick = () => { closeMg(); done(false); };
-  const limit = 14 - hard;
+  const limit = 18 - hard;
   $('mgBtnL').hidden = $('mgBtnR').hidden = kind !== 'emelo';
   $('mgBtn').hidden = kind === 'emelo';
 
@@ -34,7 +34,7 @@ export function openMg(kind, hard, done) {
     btn.textContent = 'MOST';
     btn.onclick = () => {
       if (st.done) return;
-      const zone = 0.2 - hard * 0.02;
+      const zone = 0.3 - hard * 0.03;
       if (Math.abs(st.ang) < zone) { st.ok++; st.flash = 'ok'; if (st.ok >= 3) finish(true); }
       else { st.ok = 0; st.flash = 'bad'; }
       st.flashT = 0.25;
@@ -62,7 +62,7 @@ export function openMg(kind, hard, done) {
     btn.onclick = () => {
       if (st.done) return;
       const err = Math.abs(Math.atan2(Math.sin(st.shadow - st.goalAng), Math.cos(st.shadow - st.goalAng)));
-      if (err < 0.12 - hard * 0.015) finish(true); else { st.flash = 'bad'; st.flashT = 0.3; info.textContent = 'Nem pontos – az árnyék vándorol, próbáld újra!'; }
+      if (err < 0.18 - hard * 0.02) finish(true); else { st.flash = 'bad'; st.flashT = 0.3; info.textContent = 'Nem pontos – az árnyék vándorol, próbáld újra!'; }
     };
   }
 
@@ -74,10 +74,10 @@ export function openMg(kind, hard, done) {
     g.fillStyle = '#0f2a1d'; g.fillRect(0, 0, W, H);
     if (st.flashT > 0) { st.flashT -= dt; g.fillStyle = st.flash === 'ok' ? 'rgba(74,222,128,.25)' : 'rgba(248,113,113,.25)'; g.fillRect(0, 0, W, H); }
     if (kind === 'inga') {
-      const speed = 2.2 + st.ok * 0.5 + hard * 0.25;
+      const speed = 1.8 + st.ok * 0.35 + hard * 0.2;
       st.ang = Math.sin(el * speed) * 0.9;
       const px = W / 2, py = 20, L = 150;
-      const zone = 0.2 - hard * 0.02;
+      const zone = 0.3 - hard * 0.03;
       g.fillStyle = 'rgba(74,222,128,.25)';
       g.beginPath(); g.moveTo(px, py); g.arc(px, py, L + 20, PI2(0.5) - zone, PI2(0.5) + zone); g.fill();
       const bx = px + Math.sin(st.ang) * L, by = py + Math.cos(st.ang) * L;
@@ -96,7 +96,7 @@ export function openMg(kind, hard, done) {
       g.fillStyle = '#1f2937'; g.fillRect(-140, -32, 30, 27);
       g.fillStyle = '#facc15'; g.fillRect(-10 + (st.x - 0.5) * 280, -24, 20, 19);
       g.restore();
-      const ok = Math.abs(st.ang) < 0.06;
+      const ok = Math.abs(st.ang) < 0.09;
       st.hold = ok ? st.hold + dt : 0;
       g.fillStyle = ok ? '#4ade80' : '#fff'; g.font = '700 15px sans-serif';
       g.fillText(ok ? `Egyensúly: ${(2 - st.hold).toFixed(1)} mp` : 'Billeg…', 12, 24);

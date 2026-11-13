@@ -2,10 +2,10 @@
 import {
   F_TIME, F_LIVES, ROOM, GARDEN, DOOR, P, DESKS, seatPos, PLAYER_DESKS, EMPTY_DESKS, SNITCH_DESK,
   makeBags, JUNK, COVER, TOBS, NAV, AISLES, FRONT_Z, BACK_Z, interactions, collide, inGarden, walkable, sunAt,
-} from './fdata.js?v=14';
-import { skinById } from './data.js?v=14';
-import { line } from './lines.js?v=14';
-import './flines.js?v=14';
+} from './fdata.js?v=15';
+import { skinById } from './data.js?v=15';
+import { line } from './lines.js?v=15';
+import './flines.js?v=15';
 
 const PI = Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -60,7 +60,7 @@ export function findPath(ax, az, bx, bz) {
 }
 
 // nehézség alapértékek
-const D = { walk: 1.9, rush: 2.6, chase: 3.05, rocketChase: 2.5, susFill: 0.32, busyRange: 3.2, busyFov: 1.25, glance: [3.5, 7], warn: 0.5, glanceLen: 2.2, plantSee: 6.5, hear: 6 };
+const D = { walk: 1.8, rush: 2.4, chase: 2.75, rocketChase: 2.3, susFill: 0.42, busyRange: 2.9, busyFov: 1.15, glance: [4.2, 8], warn: 0.8, glanceLen: 1.8, plantSee: 5, hear: 4.5 };
 const BUSY = ['board', 'lab', 'grade', 'lecture', 'patrol'];
 const SPOTS = {
   board: () => ({ x: rnd(-1.2, 1.2), z: -7.3, yaw: PI }),
@@ -113,7 +113,7 @@ export class FSim {
     for (let i = 0; i < DESKS.length; i++) if (!PLAYER_DESKS.includes(i) && !EMPTY_DESKS.includes(i)) npc.push(i);
     this.s = {
       mode: 'fizika', phase: 'intro', reason: '', endKind: '', t: F_TIME, introT: 9, outroT: 0,
-      hits: 0, lives: F_LIVES, needSeeds: 2 + n, growNeed: 1 + 0.35 * k,
+      hits: 0, lives: F_LIVES, needSeeds: 1 + Math.floor(n / 2), growNeed: 1 + 0.18 * k,
       teacher: { x: 0, z: -7.25, yaw: PI, st: 'write', fov: 1.2, range: 0, say: '', sit: false, hidden: false, weapon: 'none', count: 0, swing: 0 },
       bags: makeBags(), npcDesks: npc, snitch: { desk: SNITCH_DESK, raise: 0, cd: 20, off: 0 },
       canSill: Math.floor(Math.random() * 4), canTaken: false, axeTaken: false,
@@ -130,7 +130,7 @@ export class FSim {
     this.mode = 'cut';
     this.act = null; this.tasks = []; this.look = null; this.stun = 0; this.stunKind = 'stun';
     this.chase = null; this.alertT = 0; this.sayT = 0; this.wantYaw = PI;
-    this.rollT = rnd(55, 70); this.blackT = rnd(95, 120); this.endT = 0; this.endInfo = null;
+    this.rollT = rnd(110, 140); this.blackT = rnd(70, 90); this.endT = 0; this.endInfo = null;
     this.rocketId = 0; this.pingT = {}; this.saidIntro = false; this.saidOutro = false; this.powerT = 0; this.last = null;
     this.emit({ e: 'snd', n: 'bell' });
   }
@@ -295,14 +295,14 @@ export class FSim {
         b.content = 'junk';
         break;
       }
-      case 'can': if (!s.canTaken) { s.canTaken = true; inv.hasCan = true; inv.can = 0; this.emit({ e: 'snd', n: 'pick' }); } break;
+      case 'can': if (!s.canTaken) { s.canTaken = true; inv.hasCan = true; inv.can = 2; this.emit({ e: 'snd', n: 'pick' }); } break;
       case 'fill': if (inv.hasCan && inv.bottle > 0) { inv.bottle--; inv.can = 3; near('pour'); } break;
       case 'axe': if (!s.axeTaken) { s.axeTaken = true; inv.axe = true; this.emit({ e: 'snd', n: 'pick' }); } break;
       case 'st': this.startMg(p, +arg); break;
       case 'plant':
         if (!s.plant && inv.vase && inv.seeds >= s.needSeeds) {
           inv.vase = false; inv.seeds -= s.needSeeds;
-          s.plant = { desk: p.seated, growth: 0, water: 0.6, carried: null, covered: false, seeds: s.needSeeds, by: p.id };
+          s.plant = { desk: p.seated, growth: 0, water: 1, carried: null, covered: false, seeds: s.needSeeds, by: p.id };
           this.emit({ e: 'toast', m: 'Elültetve. Öntözd, és tartsd a napon!', k: 'good' });
           this.emit({ e: 'snd', n: 'pick' });
         }
@@ -371,7 +371,7 @@ export class FSim {
     const s = this.s, i = p.mg.st;
     p.mg = null;
     if (dist(p.x, p.z, P.stations[i].x, P.stations[i].z) > 2.4) return;
-    s.cd['st' + i] = 22 + 4 * this.k();
+    s.cd['st' + i] = 10 + 3 * this.k();
     p.inv.seeds++; s.stats.seeds++; p.score += 3;
     this.emit({ e: 'toast', m: `Kísérlet kész – kaptál egy napraforgómagot (${this.teamSeeds()}/${s.needSeeds})`, k: 'good', pid: p.id });
     this.emit({ e: 'snd', n: 'goal' });
@@ -725,7 +725,7 @@ export class FSim {
 
   startRoll() {
     const s = this.s;
-    this.rollT = rnd(75, 100);
+    this.rollT = rnd(120, 150);
     s.roll = { t: 8 };
     s.stats.rolls++;
     this.say(line('f_roll'), 3, 'angry');
@@ -830,9 +830,9 @@ export class FSim {
     if (pl) {
       const tender = Object.values(s.players).find((q) => q.seated === pl.desk && q.down <= 0);
       if (tender && !pl.covered && !pl.carried && pl.water > 0 && pl.desk >= 0) {
-        pl.water = Math.max(0, pl.water - dt / 70); // csak növekedés közben fogy
+        pl.water = Math.max(0, pl.water - dt / 90); // csak növekedés közben fogy
         const d = DESKS[pl.desk];
-        const rate = (sunAt(s.sun, d.x, d.z) / 95) / s.growNeed * (tender.drunk > 0 ? 0.65 : 1);
+        const rate = (sunAt(s.sun, d.x, d.z) / 65) / s.growNeed * (tender.drunk > 0 ? 0.65 : 1);
         pl.growth = Math.min(1, pl.growth + rate * dt);
         pl.sunNow = sunAt(s.sun, d.x, d.z);
       }
@@ -858,7 +858,7 @@ export class FSim {
       const pg = inGarden(p.x);
       p.outT = pg ? p.outT + dt : 0;
       // stréber: ha valaki 10 mp-nél tovább kint van
-      if (pg && p.outT > 10 && sn.off <= 0 && sn.cd <= 0 && !this.chase && this.mode === 'class' && !T.hidden) {
+      if (pg && p.outT > 18 && sn.off <= 0 && sn.cd <= 0 && !this.chase && this.mode === 'class' && !T.hidden) {
         sn.cd = 25; sn.raise = 3;
         this.emit({ e: 'snitch', m: line('f_snitch', { n: p.name }), pid: p.id });
         this.checkAbsent(p);
@@ -885,7 +885,7 @@ export class FSim {
         const ex = sp.x - T.x, ez = sp.z - T.z, ed = Math.hypot(ex, ez);
         const look = ed < T.range && Math.acos(Math.max(-1, Math.min(1, (ex * dirX + ez * dirZ) / ed))) <= T.fov / 2;
         p.missT = look && (T.st === 'lecture' || T.st === 'walk' || T.st === 'roll') ? p.missT + dt : Math.max(0, p.missT - dt);
-        if (p.missT > 2) { p.missT = 0; this.checkAbsent(p); continue; }
+        if (p.missT > 3.5) { p.missT = 0; this.checkAbsent(p); continue; }
       }
       const pl2 = s.plant;
       const carrying = pl2 && pl2.carried === p.id && pl2.growth < 1; // a kész növényt már nyugodtan viheted

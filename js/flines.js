@@ -1,5 +1,5 @@
 // Fizika néni szövegei ({n} = diák neve). A lines.js közös LINES-ába kerülnek.
-import { LINES } from './lines.js?v=14';
+import { LINES } from './lines.js?v=15';
 
 Object.assign(LINES, {
   f_intro: ['Ezt írjátok le. Szó szerint. Lesz belőle dolgozat.'],

@@ -1,5 +1,5 @@
 // „Fizika – Napraforgó” mód: pálya (hosszabb terem + iskolakert), tárgyak, interakciók.
-export const F_TIME = 900; // 15 perc
+export const F_TIME = 420; // 7 perc
 export const F_LIVES = 3;
 export const EYE = 1.55;
 export const PLAYER_R = 0.28;
@@ -119,7 +119,7 @@ export function sunAt(sun, x, z) {
   const beamZ = 7 - sun * 14;
   const along = Math.max(0, 1 - Math.abs(z - beamZ) / 4.2);
   const side = x < -1 ? 1 : x < 1.5 ? 0.7 : 0.45;
-  return Math.max(0.2, along * side);
+  return Math.max(0.45, along * side);
 }
 
 // ---- interakciók --------------------------------------------------------------

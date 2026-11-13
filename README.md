@@ -87,7 +87,7 @@ Fizika néni felírja az okostáblára: „A napraforgó a nappal ellentétesen 
 szökjetek ki a kertbe, a kísérletekért (inga, emelő, napóra) magot kaptok; a táskákban a váza és a vizes palack,
 az ablakpárkányon a kanna; üljetek be egy napos padba, és neveljétek fel a napraforgót úgy, hogy Fizika néni ne
 vegye észre (ELTAKAR gomb). A kész növényt vigyétek oda neki. Fizika néni fakanállal üldöz, két találat után
-rakétavetővel; három találat vagy 15 perc után vége. Elterelés: fejszével az okostábla, generátor, villany,
+rakétavetővel; három találat vagy 7 perc után vége. Elterelés: fejszével az okostábla, generátor, villany,
 tűzjelző, papírgalacsin, telefon. Többen: közös életek, több mag kell, tárgyakat át lehet adni (ÁTAD),
 a kiütött játékos JELEZ-ni tud. A játék nem támogatja a káros szerek fogyasztását és a fegyverek használatát –
 ezek csak a játékélmény miatt szerepelnek.
