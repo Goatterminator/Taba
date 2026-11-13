@@ -138,6 +138,7 @@ export function interactions(s, p) {
       if (inv.can > 0 && pl.water < 0.85) add('water', 'Öntözés', dp, 1.0, 9);
       if (!pl.carried) add('pick', 'Váza felvétele', dp, 0.6, 9);
     }
+    if (inv.hasCan && inv.bottle > 0 && inv.can < 3) add('fill', 'Víz a kannába a palackból', dp, 1.8, 9);
     const v = p.vices || {};
     if (!v.cigi) add('cigi', 'Cigi (a táskából)', dp, 0.8, 9);
     if (!v.vape) add('vape', 'Vape (a táskából)', dp, 0.8, 9);

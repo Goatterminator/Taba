@@ -30,10 +30,12 @@ function segHits(ax, az, bx, bz, b) {
 }
 const inBox = (x, z) => TOBS.some((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1);
 const clearSeg = (a, b) => !TOBS.some((o) => segHits(a.x, a.z, b.x, b.z, o));
+// a kiindulópontot tartalmazó akadályból ki lehet lépni, de a többit (pl. falat) nem lehet átszelni
+const clearFrom = (a, b) => !TOBS.some((o) => !(a.x > o.x0 && a.x < o.x1 && a.z > o.z0 && a.z < o.z1) && segHits(a.x, a.z, b.x, b.z, o));
 const nearestNav = (x, z) => NAV.reduce((b, q) => (dist(q.x, q.z, x, z) < dist(b.x, b.z, x, z) ? q : b), NAV[0]);
 export function findPath(ax, az, bx, bz) {
   const goal = inBox(bx, bz) ? nearestNav(bx, bz) : { x: bx, z: bz };
-  if (clearSeg({ x: ax, z: az }, goal)) return [goal];
+  if (clearFrom({ x: ax, z: az }, goal)) return [goal];
   const nodes = [{ x: ax, z: az }, ...NAV, goal];
   const n = nodes.length, G = n - 1;
   const d = new Array(n).fill(Infinity), prev = new Array(n).fill(-1), done = new Array(n).fill(false);
@@ -46,7 +48,7 @@ export function findPath(ax, az, bx, bz) {
     if (u === G) break;
     for (let v = 0; v < n; v++) {
       if (done[v]) continue;
-      if (!clearSeg(nodes[u], nodes[v]) && !(u === 0 && inBox(ax, az))) continue;
+      if (u === 0 ? !clearFrom(nodes[0], nodes[v]) : !clearSeg(nodes[u], nodes[v])) continue;
       const nd = d[u] + dist(nodes[u].x, nodes[u].z, nodes[v].x, nodes[v].z);
       if (nd < d[v]) { d[v] = nd; prev[v] = u; }
     }
@@ -176,7 +178,11 @@ export class FSim {
     else if (m.t === 'stand') { if (p.seated != null) this.standUp(p); }
     else if (m.t === 'cover') {
       const pl = s.plant;
-      if (pl && p.seated === pl.desk && !pl.carried) { pl.covered = !pl.covered; p.hot = Math.max(p.hot, 0.4); }
+      if (pl && p.seated === pl.desk && !pl.carried) {
+        pl.covered = !pl.covered;
+        const T = s.teacher;
+        if (!T.hidden && dist(p.x, p.z, T.x, T.z) < 3.5) p.hot = Math.max(p.hot, 0.4); // közelről látja a mozdulatot
+      }
     } else if (m.t === 'mg') {
       if (p.mg && m.ok === true && p.mg.t > 0) this.mgDone(p);
       else if (p.mg) { p.mg = null; }
@@ -415,6 +421,15 @@ export class FSim {
     }
   }
 
+  // hiányzót vett észre: az ajtóhoz siet és kinéz a kertbe
+  checkAbsent(p) {
+    if (this.chase || this.tasks.some((t) => t.id === 'absent')) return;
+    this.say(line('f_absent', { n: p.name }), 3, 'angry');
+    this.emit({ e: 'evt', t: `${p.name} hiányzik`, d: 'Fizika néni az ajtóhoz indul – érj vissza a padodba, mielőtt kinéz!', pid: p.id });
+    if (this.act && this.act.kind !== 'task' && this.act.kind !== 'alarm') this.finishAct(this.act);
+    this.tasks.unshift({ id: 'absent', pid: p.id, spot: { x: 4.4, z: DOOR.z, yaw: PI / 2 }, dur: 2.5, rush: true, look: true });
+  }
+
   // ---- üldözés -------------------------------------------------------
   startChase(p, why) {
     const s = this.s, T = s.teacher;
@@ -592,6 +607,10 @@ export class FSim {
         this.say(line(tk.beer ? 'f_beerHeard' : 'f_smoke'), 3, 'angry');
         if (q && q.seated === tk.desk) { q.watch = 35; if (q.inv.axe) this.dropAll(q); }
         if (s.plant && s.plant.desk === tk.desk && !s.plant.covered) this.confiscatePlant();
+      } else if (tk.id === 'absent') {
+        const q = s.players[tk.pid];
+        if (q && inGarden(q.x) && q.down <= 0) this.startChase(q, 'absent');
+        else if (q) { q.watch = 25; this.say(line('f_seatedSafe', { n: q.name }), 3, 'angry'); }
       } else if (tk.id === 'lights') { s.lights = true; }
       else if (tk.id === 'phone') { s.phone = null; this.say(line('f_phone'), 2.5, 'angry'); }
     }
@@ -792,9 +811,9 @@ export class FSim {
     // napraforgó
     const pl = s.plant;
     if (pl) {
-      pl.water = Math.max(0, pl.water - dt / 45);
       const tender = Object.values(s.players).find((q) => q.seated === pl.desk && q.down <= 0);
       if (tender && !pl.covered && !pl.carried && pl.water > 0 && pl.desk >= 0) {
+        pl.water = Math.max(0, pl.water - dt / 70); // csak növekedés közben fogy
         const d = DESKS[pl.desk];
         const rate = (sunAt(s.sun, d.x, d.z) / 95) / s.growNeed * (tender.drunk > 0 ? 0.65 : 1);
         pl.growth = Math.min(1, pl.growth + rate * dt);
@@ -825,7 +844,7 @@ export class FSim {
       if (pg && p.outT > 10 && sn.off <= 0 && sn.cd <= 0 && !this.chase && this.mode === 'class' && !T.hidden) {
         sn.cd = 25; sn.raise = 3;
         this.emit({ e: 'snitch', m: line('f_snitch', { n: p.name }), pid: p.id });
-        this.startChase(p, 'absent');
+        this.checkAbsent(p);
       }
       if (p.act) {
         const it = interactions(s, p).find((i) => i.id === p.act.id);
@@ -848,15 +867,17 @@ export class FSim {
         const sp = seatPos(p.desk);
         const ex = sp.x - T.x, ez = sp.z - T.z, ed = Math.hypot(ex, ez);
         const look = ed < T.range && Math.acos(Math.max(-1, Math.min(1, (ex * dirX + ez * dirZ) / ed))) <= T.fov / 2;
-        p.missT = look ? p.missT + dt : Math.max(0, p.missT - dt);
-        if (p.missT > 1.2) { this.startChase(p, 'absent'); continue; }
+        p.missT = look && (T.st === 'lecture' || T.st === 'walk' || T.st === 'roll') ? p.missT + dt : Math.max(0, p.missT - dt);
+        if (p.missT > 2) { p.missT = 0; this.checkAbsent(p); continue; }
       }
       const pl2 = s.plant;
       const carrying = pl2 && pl2.carried === p.id && pl2.growth < 1; // a kész növényt már nyugodtan viheted
       const away = p.seated == null && dist(p.x, p.z, seatPos(p.desk).x, seatPos(p.desk).z) > 1.4;
       const strong = (p.act && !p.act.id.startsWith('sit')) || p.hot > 0 || p.inv.axe || carrying;
-      const weak = away && (T.st === 'lecture' || T.st === 'roll');
-      const rate = strong ? 1 : weak ? 0.4 : 0;
+      // a helyén kívül járkáló diák csak magyarázás közben és a közelében gyanús (névsorolvasáskor szabad a helyére sietni)
+      const weak = away && T.st === 'lecture' && !s.roll && d < 6;
+      // padban ülve messziről nem látszik, mit csinálsz a kezeddel
+      const rate = strong && !(p.seated != null && d > 8 && !carrying) ? 1 : weak ? 0.3 : 0;
       const mul = (p.watch > 0 ? 1.5 : 1) / (D.susFill * (1 - 0.08 * this.k()));
       if (seen && rate > 0 && p.immune <= 0) p.sus += dt * rate * mul;
       else p.sus = Math.max(0, p.sus - dt / 1.2);
