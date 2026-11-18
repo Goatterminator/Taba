@@ -1,7 +1,7 @@
 // 3D-s megjelenítés (Three.js): a terem, Taba, a diákok, tárgyak és effektek.
 import * as THREE from '../vendor/three.module.min.js';
-import { applyWorld, flagShadows } from './gfx.js?v=16';
-import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js?v=16';
+import { applyWorld, flagShadows } from './gfx.js?v=17';
+import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js?v=17';
 
 const PI = Math.PI;
 const matCache = new Map();
@@ -300,6 +300,9 @@ export function poseHuman(h, mode, t, sit, count = 0) {
   }
   if (sit) { ly = -0.3; la = [-PI / 2, -PI / 2]; }
   body.position.y = ly + by;
+  body.position.z = 0;
+  // ülve a csípő körül dőljön előre, különben a csípő lecsúszik a székről
+  if (sit && bx) { body.position.y += 0.82 * (1 - Math.cos(bx)); body.position.z = -0.82 * Math.sin(bx); }
   body.rotation.set(bx, 0, bz);
   legs[0].rotation.x = la[0]; legs[1].rotation.x = la[1];
   arms[0].rotation.set(aa[0], 0, az[0]); arms[1].rotation.set(aa[1], 0, az[1]);

@@ -1,8 +1,8 @@
 // „Fizika – Napraforgó” pálya 3D-ben. Ugyanazt a renderert használja, mint a Taba-pálya.
 import * as THREE from '../vendor/three.module.min.js';
-import { makeHuman, poseHuman, makeItem, studentLook, box, put, mat, canvasTex, makeChair, NPC_LOOKS, NPC_IDLE, lerpAngle } from './world.js?v=16';
-import { applyWorld, flagShadows } from './gfx.js?v=16';
-import { ROOM, GARDEN, DOOR, P, DESKS, seatPos, EYE, PLAYER_DESKS, inGarden, sunAt } from './fdata.js?v=16';
+import { makeHuman, poseHuman, makeItem, studentLook, box, put, mat, canvasTex, makeChair, NPC_LOOKS, NPC_IDLE, lerpAngle } from './world.js?v=17';
+import { applyWorld, flagShadows } from './gfx.js?v=17';
+import { ROOM, GARDEN, DOOR, P, DESKS, seatPos, EYE, PLAYER_DESKS, inGarden, sunAt } from './fdata.js?v=17';
 
 const PI = Math.PI;
 const TEACHER_LOOK = { skin: 0xe9c4a6, hair: 0xa8a29e, shirt: 0x6d2846, sleeve: 0x6d2846, pants: 0x3f3f46, glasses: true, hand: true };
