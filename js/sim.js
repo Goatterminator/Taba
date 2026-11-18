@@ -3,8 +3,8 @@
 import {
   ROUND_TIME, METER_MAX, MAX_STRIKES, WC_LIMIT, ROOM, WC, P, SEATS, ITEMS, TOBS, NAV, AISLES, FRONT_Z, BACK_Z,
   makeItems, interactions, projState, isDark, collide, inWC, skinById, OBS, DOOR, QUIZ, NPC_NAMES,
-} from './data.js?v=17';
-import { LINES, line } from './lines.js?v=17';
+} from './data.js?v=18';
+import { LINES, line } from './lines.js?v=18';
 
 const PI = Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);

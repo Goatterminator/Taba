@@ -1,7 +1,7 @@
 // 3D-s megjelenítés (Three.js): a terem, Taba, a diákok, tárgyak és effektek.
 import * as THREE from '../vendor/three.module.min.js';
-import { applyWorld, flagShadows } from './gfx.js?v=17';
-import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js?v=17';
+import { applyWorld, flagShadows } from './gfx.js?v=18';
+import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js?v=18';
 
 const PI = Math.PI;
 const matCache = new Map();

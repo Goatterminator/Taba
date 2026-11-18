@@ -1,8 +1,8 @@
 // „Fizika – Napraforgó” pálya 3D-ben. Ugyanazt a renderert használja, mint a Taba-pálya.
 import * as THREE from '../vendor/three.module.min.js';
-import { makeHuman, poseHuman, makeItem, studentLook, box, put, mat, canvasTex, makeChair, NPC_LOOKS, NPC_IDLE, lerpAngle } from './world.js?v=17';
-import { applyWorld, flagShadows } from './gfx.js?v=17';
-import { ROOM, GARDEN, DOOR, P, DESKS, seatPos, EYE, PLAYER_DESKS, inGarden, sunAt } from './fdata.js?v=17';
+import { makeHuman, poseHuman, makeItem, studentLook, box, put, mat, canvasTex, makeChair, NPC_LOOKS, NPC_IDLE, lerpAngle } from './world.js?v=18';
+import { applyWorld, flagShadows } from './gfx.js?v=18';
+import { ROOM, GARDEN, DOOR, P, DESKS, seatPos, EYE, PLAYER_DESKS, inGarden, sunAt } from './fdata.js?v=18';
 
 const PI = Math.PI;
 const TEACHER_LOOK = { skin: 0xe9c4a6, hair: 0xa8a29e, shirt: 0x6d2846, sleeve: 0x6d2846, pants: 0x3f3f46, glasses: true, hand: true };
@@ -390,42 +390,71 @@ export class FWorld {
     this.vm.add(m);
   }
 
-  // sörnyitás: első személyű, két kézzel (kb. 3,2 mp)
+  // sörnyitás: első személyű, két kézzel (kb. 4,4 mp)
+  // a doboz nyílása a kamera felé néz (+z), a fül gyűrűje a túloldalon; iváskor a teteje felénk billen
   stepBeer(dt) {
     if (this.beerT < 0) return false;
+    const skin = 0xf0c8a0;
     if (!this.beerGroup) {
       const g = new THREE.Group();
-      const can = put(g, new THREE.Group(), 0.06, -0.2, -0.42);
-      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.13, 16), mat(0xc0c4c9)), 0, 0, 0);
-      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.0355, 0.0355, 0.07, 16), mat(0x1f6f3f)), 0, -0.005, 0);
-      const tab = put(can, new THREE.Group(), 0, 0.066, 0.01);
-      put(tab, box(0.014, 0.003, 0.03, 0x9ca3af), 0, 0, 0.012);
-      const hand = put(g, box(0.07, 0.09, 0.05, 0xf0c8a0), 0.11, -0.24, -0.4);
-      const finger = put(g, box(0.016, 0.05, 0.016, 0xf0c8a0), -0.05, -0.1, -0.42);
+      const can = put(g, new THREE.Group(), 0.035, -0.5, -0.4);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.122, 20), mat(0xc9cdd2));
+      put(can, body, 0, 0, 0);
+      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.0335, 0.0335, 0.075, 20), mat(0x1f6f3f)), 0, -0.006, 0);
+      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.0337, 0.0337, 0.012, 20), mat(0xd4af37)), 0, 0.02, 0);
+      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.033, 0.01, 20), mat(0xb8bcc2)), 0, 0.066, 0); // nyak
+      put(can, new THREE.Mesh(new THREE.CylinderGeometry(0.029, 0.029, 0.004, 20), mat(0xd9dce0)), 0, 0.071, 0); // fedél
+      const hole = put(can, box(0.016, 0.002, 0.012, 0x1a1a1a), 0, 0.0735, 0.016); hole.visible = false;
+      // fül: tengely a közepén, gyűrű a túloldalon (-z)
+      const tab = put(can, new THREE.Group(), 0, 0.0745, 0.004);
+      put(tab, box(0.014, 0.0025, 0.012, 0xa3a8ae), 0, 0, 0.004);
+      put(tab, box(0.016, 0.0025, 0.018, 0xa3a8ae), 0, 0, -0.012);
+      // jobb kéz a dobozon (a doboz gyereke, így vele mozog és billen)
+      const hand = put(can, new THREE.Group(), 0.012, -0.01, 0.02);
+      put(hand, box(0.03, 0.085, 0.05, skin), 0.026, 0, 0.004); // tenyér
+      for (let i = 0; i < 4; i++) put(hand, box(0.052, 0.016, 0.014, skin), -0.004, 0.026 - i * 0.019, 0.036); // ujjak körbe
+      put(hand, box(0.016, 0.045, 0.016, skin), 0.012, 0.03, -0.03); // hüvelykujj
+      put(hand, box(0.05, 0.08, 0.06, 0x334155), 0.03, -0.075, 0.004); // kézelő
+      // bal mutatóujj a fülhöz
+      // bal kéz: a doboz mögül, felülről nyúl a gyűrű alá (a csoport origója a gyűrű)
+      const lh = put(g, new THREE.Group(), -0.12, -0.35, -0.42);
+      put(lh, box(0.055, 0.03, 0.06, skin), -0.012, 0.03, -0.05);
+      put(lh, box(0.014, 0.014, 0.04, skin), 0, 0.012, -0.018);
+      put(lh, box(0.06, 0.04, 0.06, 0x334155), -0.012, 0.035, -0.105);
       const foam = [];
-      for (let i = 0; i < 10; i++) { const f = put(can, new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), mat(0xffffff)), 0, 0.07, 0.01); f.visible = false; foam.push(f); }
-      g.userData = { can, tab, hand, finger, foam };
+      for (let i = 0; i < 8; i++) { const f = put(can, new THREE.Mesh(new THREE.SphereGeometry(0.003 + (i % 3) * 0.0012, 6, 4), mat(0xfffbeb)), 0, 0.075, 0.016); f.visible = false; foam.push(f); }
+      g.userData = { can, tab, hole, lh, foam, sfx: {} };
       this.camera.add(g); this.beerGroup = g;
     }
     const u = this.beerGroup.userData, t = (this.beerT += dt);
-    const ease = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
-    u.can.position.y = -0.36 + 0.24 * ease(t / 0.5) - (t > 2.7 ? 0.3 * ease((t - 2.7) / 0.5) : 0);
-    u.hand.position.y = u.can.position.y - 0.04;
-    // ujj a fülre, felpattintás
-    const f = ease((t - 0.5) / 0.4);
-    u.finger.position.set(-0.05 + 0.11 * f, -0.1 - 0.06 * (1 - f) + (t > 1.0 ? 0.03 * ease((t - 1.0) / 0.2) : 0), -0.42);
-    u.finger.visible = t < 1.5;
-    u.tab.rotation.x = t > 1.0 ? -1.4 * ease((t - 1.0) / 0.15) : 0;
-    if (t > 1.05 && !this.beerHiss) { this.beerHiss = true; this.onHiss && this.onHiss(); }
+    const cl = (x) => Math.max(0, Math.min(1, x));
+    const ease = (x) => { x = cl(x); return x * x * (3 - 2 * x); };
+    const once = (k) => { if (u.sfx[k]) return false; u.sfx[k] = true; return true; };
+    // 0–0,6: a doboz felkerül; 0,6–1,5: bal kéz a fülhöz, felpattint; 1,9–3,7: ivás; 3,7–4,4: le
+    const up = ease(t / 0.6), lift = ease((t - 1.9) / 0.5), back = ease((t - 3.6) / 0.6);
+    const drink = lift * (1 - back);
+    const sip = drink * (0.12 * ease((t - 2.3) / 1.2)); // ahogy fogy, egyre jobban billen
+    u.can.position.set(0.035 - 0.03 * drink, -0.5 + 0.28 * up + 0.13 * drink - 0.25 * back, -0.4 + 0.24 * drink);
+    u.can.rotation.set(0.15 * up * (1 - drink) + (1.25 + sip * 6) * drink, -0.25 * (1 - drink), 0.08 * up * (1 - drink));
+    // bal kéz: oda, felhúzza a gyűrűt, visszanyomja, el
+    const reach = ease((t - 0.6) / 0.35) * (1 - ease((t - 1.4) / 0.3));
+    const c = u.can.position;
+    u.lh.visible = t > 0.5 && t < 1.8;
+    u.lh.position.set(-0.12 + (c.x + 0.12) * reach, -0.35 + (c.y + 0.078 + 0.35) * reach + (t > 0.95 ? 0.012 * ease((t - 0.95) / 0.12) * (1 - ease((t - 1.15) / 0.15)) : 0), -0.42 + (c.z - 0.012 + 0.42) * reach);
+    u.tab.rotation.x = t > 0.95 ? -1.1 * ease((t - 0.95) / 0.1) * (1 - 0.75 * ease((t - 1.15) / 0.15)) : 0;
+    u.hole.visible = t > 1.02;
+    if (t > 0.98 && once('click')) this.onSfx && this.onSfx('canOpen');
+    // hab kibuggyan a nyíláson
     u.foam.forEach((m, i) => {
-      const ft = t - 1.05 - i * 0.03;
-      m.visible = ft > 0 && ft < 0.8;
-      if (m.visible) m.position.set(Math.sin(i * 2.1) * 0.02 * ft * 3, 0.07 + ft * 0.12, 0.01 + Math.cos(i * 1.7) * 0.015);
+      const ft = t - 1.02 - i * 0.04;
+      m.visible = ft > 0 && ft < 0.9 && t < 1.9;
+      if (m.visible) m.position.set(Math.sin(i * 2.1) * 0.005, 0.075 + Math.min(ft, 0.2) * 0.02, 0.016 + Math.min(ft, 0.5) * 0.02 + Math.cos(i * 1.7) * 0.003);
     });
-    // ivás: a doboz a kamera felé billen
-    u.can.rotation.x = t > 1.6 && t < 2.7 ? -1.1 * ease((t - 1.6) / 0.35) : t >= 2.7 ? -1.1 * (1 - ease((t - 2.7) / 0.3)) : 0;
-    u.can.position.z = -0.42 + (t > 1.6 && t < 2.7 ? 0.17 * ease((t - 1.6) / 0.35) : 0);
-    if (t > 3.3) { this.camera.remove(this.beerGroup); this.beerGroup = null; this.beerT = -1; this.beerHiss = false; return false; }
+    // fej hátra iváskor
+    this.camera.rotation.x += 0.22 * drink;
+    for (let i = 0; i < 4; i++) if (t > 2.35 + i * 0.32 && once('g' + i)) this.onSfx && this.onSfx('gulp');
+    if (t > 3.75 && once('ah')) this.onSfx && this.onSfx('exhale');
+    if (t > 4.4) { this.camera.remove(this.beerGroup); this.beerGroup = null; this.beerT = -1; return false; }
     return true;
   }
 

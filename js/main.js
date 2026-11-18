@@ -1,15 +1,15 @@
 // Fő vezérlés: menük, játékhurok, hálózat összekötése a szimulációval és a megjelenítéssel.
-import { World, studentLook, DRAW_COLORS } from './world.js?v=17';
-import { Sim } from './sim.js?v=17';
-import { Controls } from './controls.js?v=17';
-import { createNet, makeCode } from './net.js?v=17';
-import { play, unlockAudio, setMuted, music, setMusicEnabled, setVolumes } from './audio.js?v=17';
-import { PRESETS, PRESET_NAMES, DEFAULTS, applyRenderer } from './gfx.js?v=17';
-import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js?v=17';
-import { FSim } from './fsim.js?v=17';
-import { FWorld } from './fworld.js?v=17';
-import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js?v=17';
-import { openMg, closeMg, mgOpen } from './minigames.js?v=17';
+import { World, studentLook, DRAW_COLORS } from './world.js?v=18';
+import { Sim } from './sim.js?v=18';
+import { Controls } from './controls.js?v=18';
+import { createNet, makeCode } from './net.js?v=18';
+import { play, unlockAudio, setMuted, music, setMusicEnabled, setVolumes } from './audio.js?v=18';
+import { PRESETS, PRESET_NAMES, DEFAULTS, applyRenderer } from './gfx.js?v=18';
+import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js?v=18';
+import { FSim } from './fsim.js?v=18';
+import { FWorld } from './fworld.js?v=18';
+import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js?v=18';
+import { openMg, closeMg, mgOpen } from './minigames.js?v=18';
 
 const $ = (id) => document.getElementById(id);
 const ICON_SOUND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
@@ -30,7 +30,7 @@ const settings = (() => {
 const world = new World($('c'), { antialias: settings.antialias });
 let fworld = null;
 const getF = () => {
-  if (!fworld) { fworld = new FWorld(world.renderer); fworld.setQuality(settings, true); }
+  if (!fworld) { fworld = new FWorld(world.renderer); fworld.onSfx = play; fworld.setQuality(settings, true); }
   return fworld;
 };
 const isF = () => !!view && view.mode === 'fizika';
@@ -602,7 +602,7 @@ function handleEvent(ev) {
       if (ev.mood === 'pa') toast('Hangosbemondó: ' + ev.m, 'info');
       break;
     }
-    case 'snd': play(ev.n); break;
+    case 'snd': if (!(ev.pid && ev.pid === myId)) play(ev.n); break;
     case 'strike':
       banner(ev.m, ev.hit ? 'Eltaláltátok Tabát!' : ev.name ? `Taba elkapta: ${ev.name}${ev.wc ? ' a mosdóban' : ''}` : '');
       play('strike');
@@ -1253,4 +1253,4 @@ setInterval(() => { if (document.hidden && role === 'host') tickSim(performance.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && role !== 'host') lastSim = performance.now(); });
 
 // tesztekhez / hibakereséshez
-window.__taba = { world, ctl, me, wallet, get sim() { return sim; }, get view() { return view; }, get mode() { return mode; }, get role() { return role; }, get myId() { return myId; }, send };
+window.__taba = { world, ctl, me, wallet, get fworld() { return fworld; }, get sim() { return sim; }, get view() { return view; }, get mode() { return mode; }, get role() { return role; }, get myId() { return myId; }, send };

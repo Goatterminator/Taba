@@ -2,10 +2,10 @@
 import {
   F_TIME, F_LIVES, ROOM, GARDEN, DOOR, P, DESKS, seatPos, PLAYER_DESKS, EMPTY_DESKS, SNITCH_DESK,
   makeBags, JUNK, COVER, TOBS, NAV, AISLES, FRONT_Z, BACK_Z, interactions, collide, inGarden, walkable, sunAt,
-} from './fdata.js?v=17';
-import { skinById } from './data.js?v=17';
-import { line } from './lines.js?v=17';
-import './flines.js?v=17';
+} from './fdata.js?v=18';
+import { skinById } from './data.js?v=18';
+import { line } from './lines.js?v=18';
+import './flines.js?v=18';
 
 const PI = Math.PI;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -351,7 +351,7 @@ export class FSim {
       case 'beer':
         p.vices.beer = true; p.drunk = 30; s.stats.beer++; s.stats.vices++;
         this.emit({ e: 'beer', pid: p.id });
-        this.emit({ e: 'snd', n: 'hiss' });
+        this.emit({ e: 'snd', n: 'hiss', pid: p.id });
         if (!T.hidden && dist(p.x, p.z, T.x, T.z) < 7 && !inGarden(T.x)) this.tasks.push({ id: 'smoke', delay: 1.2, desk: p.seated, pid: p.id, beer: true });
         break;
       case 'deliver':
