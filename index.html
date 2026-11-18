@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css?v=15">
+  <link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body>
   <canvas id="c"></canvas>
@@ -32,9 +32,11 @@
       </div>
       <div id="strikes" class="pill" title="Lebukások"><i>1</i><i>2</i><i>3</i></div>
       <button id="btnMute" class="pill mini" aria-label="Hang"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
+      <button id="btnSettings" class="pill mini" aria-label="Beállítások"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.7 7.7 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.7 7.7 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.3 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM12 15.3a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6z"/></svg></button>
       <button id="btnExit" class="pill mini" aria-label="Kilépés">✕</button>
     </div>
 
+    <div id="fps" hidden></div>
     <div id="status" class="pill"><span id="tabaSt"></span></div>
     <div id="evt" hidden><b></b><span></span></div>
     <ul id="goals"></ul>
@@ -130,6 +132,7 @@
       <p id="menuMsg" class="msg" hidden></p>
       <div class="row small">
         <button id="btnHelp" class="link">Hogyan kell játszani?</button>
+        <button id="btnSettingsMenu" class="link">Beállítások</button>
         <button id="btnMusic" class="link">Zene: be</button>
         <button id="btnInstall" class="link" hidden>Telepítés a telefonra</button>
       </div>
@@ -181,6 +184,38 @@
     </div>
   </div>
 
+  <!-- Beállítások -->
+  <div id="settings" class="screen" hidden>
+    <div class="card wide setCard">
+      <h2>Beállítások</h2>
+      <h3>Grafika</h3>
+      <div class="presets" id="presets">
+        <button data-p="low" class="btn small">Alacsony</button>
+        <button data-p="mid" class="btn small">Közepes</button>
+        <button data-p="high" class="btn small">Magas</button>
+        <button data-p="ultra" class="btn small">Ultra</button>
+      </div>
+      <p class="tiny" id="presetHint"></p>
+      <label class="opt"><span>Árnyékok</span><select id="optShadows"><option value="0">Ki</option><option value="1024">Normál</option><option value="2048">Lágy, részletes</option></select></label>
+      <label class="opt"><span>Szebb fények és színek</span><input type="checkbox" id="optPretty"></label>
+      <label class="opt"><span>Köd a távolban (kert)</span><input type="checkbox" id="optFog"></label>
+      <label class="opt"><span>Felbontás <b id="vRes"></b></span><input type="range" id="optRes" min="50" max="150" step="10"></label>
+      <label class="opt"><span>Látómező <b id="vFov"></b></span><input type="range" id="optFov" min="55" max="90" step="1"></label>
+      <label class="opt"><span>Élsimítás <small>(újratöltés után)</small></span><input type="checkbox" id="optAA"></label>
+      <label class="opt"><span>FPS kijelzése</span><input type="checkbox" id="optFps"></label>
+      <h3>Hang</h3>
+      <label class="opt"><span>Fő hangerő <b id="vMaster"></b></span><input type="range" id="optMaster" min="0" max="100" step="5"></label>
+      <label class="opt"><span>Zene <b id="vMusic"></b></span><input type="range" id="optMusic" min="0" max="100" step="5"></label>
+      <label class="opt"><span>Effektek <b id="vSfx"></b></span><input type="range" id="optSfx" min="0" max="100" step="5"></label>
+      <h3>Irányítás</h3>
+      <label class="opt"><span>Nézelődés érzékenysége <b id="vSens"></b></span><input type="range" id="optSens" min="40" max="200" step="10"></label>
+      <div class="row">
+        <button id="btnSetReload" class="btn" hidden>Újratöltés most</button>
+        <button id="btnSetClose" class="btn primary">Kész</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Súgó -->
   <div id="help" class="screen" hidden>
     <div class="card wide">
@@ -214,6 +249,6 @@
   </div>
 
   <script src="vendor/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=15"></script>
+  <script type="module" src="js/main.js?v=16"></script>
 </body>
 </html>

@@ -2,13 +2,30 @@
 let ctx = null;
 let muted = false;
 
+// hangerő-sínek: fő -> (effektek, zene)
+const VOL = { master: 1, music: 0.6, sfx: 1 };
+let masterBus = null, sfxBus = null;
+function applyVol() {
+  if (!masterBus) return;
+  const t = ctx.currentTime;
+  masterBus.gain.setTargetAtTime(muted ? 0 : VOL.master, t, 0.03);
+  sfxBus.gain.setTargetAtTime(VOL.sfx, t, 0.03);
+  if (M.gain) M.gain.gain.setTargetAtTime(0.9 * VOL.music, t, 0.03);
+}
 export function unlockAudio() {
   try {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      masterBus = ctx.createGain(); masterBus.connect(ctx.destination);
+      sfxBus = ctx.createGain(); sfxBus.connect(masterBus);
+      applyVol();
+    }
     if (ctx.state === 'suspended') ctx.resume();
   } catch { /* nincs hang */ }
 }
-export function setMuted(m) { muted = m; }
+export function setMuted(m) { muted = m; applyVol(); }
+// hangerő 0..1
+export function setVolumes(v) { Object.assign(VOL, v); applyVol(); }
 
 function tone(freq, dur, { type = 'sine', vol = 0.2, to = null, delay = 0 } = {}) {
   const t = ctx.currentTime + delay;
@@ -18,7 +35,7 @@ function tone(freq, dur, { type = 'sine', vol = 0.2, to = null, delay = 0 } = {}
   if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g).connect(ctx.destination);
+  o.connect(g).connect(sfxBus);
   o.start(t); o.stop(t + dur + 0.02);
 }
 function noise(dur, { vol = 0.3, freq = 1200, q = 0.8, delay = 0, type = 'bandpass' } = {}) {
@@ -34,7 +51,7 @@ function noise(dur, { vol = 0.3, freq = 1200, q = 0.8, delay = 0, type = 'bandpa
   const g = ctx.createGain();
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  src.connect(f).connect(g).connect(ctx.destination);
+  src.connect(f).connect(g).connect(sfxBus);
   src.start(t);
 }
 
@@ -66,7 +83,7 @@ const SOUNDS = {
     g.gain.exponentialRampToValueAtTime(0.55, t + 0.04);
     g.gain.setValueAtTime(0.55, t + 1.1);
     g.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
-    o.connect(sh); o2.connect(sh); sh.connect(g).connect(ctx.destination);
+    o.connect(sh); o2.connect(sh); sh.connect(g).connect(sfxBus);
     o.start(t); o2.start(t); o.stop(t + 1.35); o2.stop(t + 1.35);
     noise(1.2, { vol: 0.25, freq: 1800, q: 0.5 });
   },
@@ -224,8 +241,8 @@ export function music(mode, tension = 0, hurry = false, theme = 'tori') {
   M.tension += (Math.max(0, Math.min(1, tension)) - M.tension) * 0.05;
   if (!M.timer && ctx) {
     M.gain = ctx.createGain();
-    M.gain.gain.value = 0.55;
-    M.gain.connect(ctx.destination);
+    M.gain.gain.value = 0.9 * VOL.music;
+    M.gain.connect(masterBus || ctx.destination);
     M.timer = setInterval(sched, 50);
   }
 }

@@ -3,6 +3,7 @@ export class Controls {
   constructor(layer, joy, knob) {
     this.move = { x: 0, y: 0 }; // x: jobbra, y: előre
     this.yaw = Math.PI; this.pitch = 0;
+    this.sens = 1;
     this.enabled = false;
     this.touch = matchMedia('(pointer: coarse)').matches;
     this.onUse = () => {}; this.onDrop = () => {}; this.onAct = () => {}; this.onCrouch = () => {};
@@ -72,6 +73,7 @@ export class Controls {
   }
 
   look(dx, dy) {
+    dx *= this.sens; dy *= this.sens;
     this.yaw -= dx;
     this.pitch = Math.max(-1.3, Math.min(1.3, this.pitch - dy));
   }

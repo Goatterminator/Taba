@@ -1,6 +1,7 @@
 // 3D-s megjelenítés (Three.js): a terem, Taba, a diákok, tárgyak és effektek.
 import * as THREE from '../vendor/three.module.min.js';
-import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js?v=15';
+import { applyWorld, flagShadows } from './gfx.js?v=16';
+import { ROOM, WC, DOOR, P, DESKS, SEATS, EYE, PLAYER_COLORS, TABA_LOOK, projState, isDark, skinById } from './data.js?v=16';
 
 const PI = Math.PI;
 const matCache = new Map();
@@ -537,8 +538,8 @@ export const NPC_IDLE = ['npcWrite', 'npcSleep', 'npcPhone', 'npcLook', 'npcWrit
 
 // ---- világ --------------------------------------------------------------
 export class World {
-  constructor(canvas) {
-    const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }));
+  constructor(canvas, opt = {}) {
+    const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: opt.antialias !== false, powerPreference: 'high-performance' }));
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x10151c);
@@ -547,7 +548,7 @@ export class World {
     this.scene.add(this.camera);
     this.hemi = new THREE.HemisphereLight(0xffffff, 0x9a8468, 1.5);
     this.sun = new THREE.DirectionalLight(0xfff1d6, 1.3);
-    this.sun.position.set(-6, 5, 1);
+    this.sun.position.set(-7, 12, 2.5);
     this.scene.add(this.hemi, this.sun);
     this.bright = 1;
     this.fx = [];
@@ -568,7 +569,8 @@ export class World {
     const w = innerWidth, h = innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    this.baseFov = w < h ? 88 : 68;
+    const f = this.fovSetting || 68;
+    this.baseFov = w < h ? f + 20 : f;
     this.camera.fov = this.baseFov / (this.zoomCur || 1);
     this.camera.updateProjectionMatrix();
     this.w = w; this.h = h;
@@ -1140,9 +1142,9 @@ export class World {
     // fények
     this.bright += ((dark ? 0.06 : 1) - this.bright) * (1 - Math.exp(-dt * 8));
     const b = this.bright;
-    this.hemi.intensity = 0.1 + 1.45 * b;
+    this.hemi.intensity = (0.1 + 1.45 * b) * (this.hemiK || 1);
     this.hemi.color.setRGB(1, 1 - 0.45 * (this.alarmTint || 0), 1 - 0.45 * (this.alarmTint || 0));
-    this.sun.intensity = 0.06 + 1.25 * b;
+    this.sun.intensity = (0.06 + 1.25 * b) * (this.sunK || 1);
     this.lampMat.color.setScalar(0.2 + 0.8 * b);
     this.skyMat.color.setScalar(0.55 + 0.45 * b);
     this.scene.background.setRGB(0.06 * b, 0.08 * b, 0.11 * b);
@@ -1416,5 +1418,12 @@ export class World {
     return { x: (v.x * 0.5 + 0.5) * this.w, y: (-v.y * 0.5 + 0.5) * this.h, ok: v.z > -1 && v.z < 1 };
   }
 
-  render() { this.renderer.render(this.scene, this.camera); }
+  setQuality(cfg, dirty) {
+    applyWorld(this, cfg, { light: this.sun, half: 10, lamps: [[-2.4, 2.9, -2.6], [2.4, 2.9, -2.6], [-2.4, 2.9, 2.2], [2.4, 2.9, 2.2], [7.1, 2.9, -4.3]], fogColor: null }, dirty);
+  }
+  render() {
+    // új tárgyak, avatarok is kapjanak árnyékot
+    if (this.shadowsOn && (this.shadowT = (this.shadowT || 0) + 1) % 60 === 0) flagShadows(this.scene);
+    this.renderer.render(this.scene, this.camera);
+  }
 }

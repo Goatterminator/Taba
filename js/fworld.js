@@ -1,7 +1,8 @@
 // „Fizika – Napraforgó” pálya 3D-ben. Ugyanazt a renderert használja, mint a Taba-pálya.
 import * as THREE from '../vendor/three.module.min.js';
-import { makeHuman, poseHuman, makeItem, studentLook, box, put, mat, canvasTex, makeChair, NPC_LOOKS, NPC_IDLE, lerpAngle } from './world.js?v=15';
-import { ROOM, GARDEN, DOOR, P, DESKS, seatPos, EYE, PLAYER_DESKS, inGarden, sunAt } from './fdata.js?v=15';
+import { makeHuman, poseHuman, makeItem, studentLook, box, put, mat, canvasTex, makeChair, NPC_LOOKS, NPC_IDLE, lerpAngle } from './world.js?v=16';
+import { applyWorld, flagShadows } from './gfx.js?v=16';
+import { ROOM, GARDEN, DOOR, P, DESKS, seatPos, EYE, PLAYER_DESKS, inGarden, sunAt } from './fdata.js?v=16';
 
 const PI = Math.PI;
 const TEACHER_LOOK = { skin: 0xe9c4a6, hair: 0xa8a29e, shirt: 0x6d2846, sleeve: 0x6d2846, pants: 0x3f3f46, glasses: true, hand: true };
@@ -117,7 +118,8 @@ export class FWorld {
 
   resize() {
     const w = innerWidth, h = innerHeight;
-    this.baseFov = w < h ? 88 : 68;
+    const f = this.fovSetting || 68;
+    this.baseFov = w < h ? f + 20 : f;
     this.camera.aspect = w / h;
     this.camera.fov = this.baseFov / (this.zoomCur || 1);
     this.camera.updateProjectionMatrix();
@@ -436,11 +438,14 @@ export class FWorld {
     const az = PI * (0.15 + 0.7 * sun);
     const sx = Math.cos(az) * 40, sz = -Math.sin(az) * 10 + 20 - sun * 40, sy = 14 + Math.sin(sun * PI) * 16;
     this.sun.position.set(-sx - 15, sy, sz);
-    this.sunLight.position.copy(this.sun.position); this.sunLight.target.position.set(0, 0, 0);
+    // a napfény iránya a nap felől, az árnyék-kamera a terem+kert közepére néz
+    this.sunLight.target.position.set(5, 0, 1.5);
+    this.sunLight.position.copy(this.sun.position).sub(this.sunLight.target.position).setLength(35).add(this.sunLight.target.position);
     const sunYaw = Math.atan2(this.sun.position.x - 0, this.sun.position.z - 0);
     const dark = s.phase === 'play' && (!s.lights || s.power === false);
     const b = this.bright = (this.bright ?? 1) + ((dark ? 0.35 : 1) - (this.bright ?? 1)) * (1 - Math.exp(-dt * 8));
-    this.hemi.intensity = 0.45 + 0.95 * b;
+    this.hemi.intensity = (0.45 + 0.95 * b) * (this.hemiK || 1);
+    this.sunLight.intensity = 1.3 * (this.sunK || 1);
     const alarm = (s.alarm || 0) > 0;
     this.hemi.color.setRGB(1, alarm ? 0.75 + 0.25 * Math.sin(t * 12) : 1, alarm ? 0.75 + 0.25 * Math.sin(t * 12) : 1);
     this.lampMat.color.setScalar(0.3 + 0.7 * b);
@@ -654,5 +659,11 @@ export class FWorld {
     const v = this.v.set(x, y, z).project(this.camera);
     return { x: (v.x * 0.5 + 0.5) * this.w, y: (-v.y * 0.5 + 0.5) * this.h, ok: v.z > -1 && v.z < 1 };
   }
-  render() { this.renderer.render(this.scene, this.camera); }
+  setQuality(cfg, dirty) {
+    applyWorld(this, cfg, { light: this.sunLight, half: 16, lamps: [[0, 2.9, -5], [0, 2.9, 0], [0, 2.9, 5]], fogColor: 0x9dc9ee }, dirty);
+  }
+  render() {
+    if (this.shadowsOn && (this.shadowT = (this.shadowT || 0) + 1) % 60 === 0) flagShadows(this.scene);
+    this.renderer.render(this.scene, this.camera);
+  }
 }

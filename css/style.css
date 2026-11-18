@@ -333,3 +333,19 @@ kbd { background: rgba(0, 0, 0, 0.35); border-radius: 4px; padding: 1px 6px; fon
 @media (max-height: 420px) { #mgCanvas { width: 300px !important; height: 183px !important; } #mgInfo { font-size: 11.5px; } }
 #goals li.cur { color: var(--yellow); font-weight: 700; opacity: 1; }
 #cineBars .cap { position: absolute; left: 0; right: 0; top: 12px; text-align: center; font-size: 14px; font-weight: 700; color: var(--yellow); letter-spacing: 0.04em; }
+
+/* ---- beállítások ---- */
+.setCard { max-height: calc(100dvh - 24px); overflow: auto; text-align: left; }
+.setCard h3 { text-align: left; margin: 12px 0 6px; color: var(--yellow); opacity: 1; }
+.presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.presets .btn.small { padding: 9px 4px; font-size: 13.5px; }
+.presets .btn.on { background: var(--yellow); color: #2b2203; border-color: var(--yellow); }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(244, 241, 230, 0.12); font-size: 14px; }
+.opt span { flex: 1 1 auto; }
+.opt span b { color: var(--yellow); font-variant-numeric: tabular-nums; margin-left: 4px; }
+.opt span small { opacity: 0.7; font-size: 11.5px; }
+.opt input[type="range"] { flex: 0 0 46%; accent-color: var(--yellow); margin: 0; padding: 0; }
+.opt input[type="checkbox"] { width: 22px; height: 22px; margin: 0; accent-color: var(--yellow); flex: 0 0 auto; }
+.opt select { flex: 0 0 auto; font: inherit; font-size: 13.5px; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: var(--chalk); border: 1.5px solid rgba(244, 241, 230, 0.35); }
+#fps { position: absolute; left: calc(10px + var(--sal)); bottom: calc(6px + var(--sab)); font: 700 11px ui-monospace, monospace; color: var(--green); background: rgba(0, 0, 0, 0.5); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 2; }
+#c.grade { filter: saturate(1.08) contrast(1.04); }

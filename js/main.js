@@ -1,14 +1,15 @@
 // Fő vezérlés: menük, játékhurok, hálózat összekötése a szimulációval és a megjelenítéssel.
-import { World, studentLook, DRAW_COLORS } from './world.js?v=15';
-import { Sim } from './sim.js?v=15';
-import { Controls } from './controls.js?v=15';
-import { createNet, makeCode } from './net.js?v=15';
-import { play, unlockAudio, setMuted, music, setMusicEnabled } from './audio.js?v=15';
-import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js?v=15';
-import { FSim } from './fsim.js?v=15';
-import { FWorld } from './fworld.js?v=15';
-import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js?v=15';
-import { openMg, closeMg, mgOpen } from './minigames.js?v=15';
+import { World, studentLook, DRAW_COLORS } from './world.js?v=16';
+import { Sim } from './sim.js?v=16';
+import { Controls } from './controls.js?v=16';
+import { createNet, makeCode } from './net.js?v=16';
+import { play, unlockAudio, setMuted, music, setMusicEnabled, setVolumes } from './audio.js?v=16';
+import { PRESETS, PRESET_NAMES, DEFAULTS, applyRenderer } from './gfx.js?v=16';
+import { ITEMS, EYE, METER_MAX, WC_LIMIT, SKINS, skinById, coinReward, inWC, interactions, collide } from './data.js?v=16';
+import { FSim } from './fsim.js?v=16';
+import { FWorld } from './fworld.js?v=16';
+import { interactions as finteractions, collide as fcollide, inGarden, seatPos, F_LIVES, ITEMS as FITEMS } from './fdata.js?v=16';
+import { openMg, closeMg, mgOpen } from './minigames.js?v=16';
 
 const $ = (id) => document.getElementById(id);
 const ICON_SOUND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
@@ -20,9 +21,18 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* privát mód */ } },
 };
 
-const world = new World($('c'));
+// ---- beállítások (a készüléken tárolva) --------------------------------------
+const settings = (() => {
+  let s = {};
+  try { s = JSON.parse(store.get('taba.settings') || '{}') || {}; } catch { s = {}; }
+  return { ...DEFAULTS, ...s };
+})();
+const world = new World($('c'), { antialias: settings.antialias });
 let fworld = null;
-const getF = () => fworld || (fworld = new FWorld(world.renderer));
+const getF = () => {
+  if (!fworld) { fworld = new FWorld(world.renderer); fworld.setQuality(settings, true); }
+  return fworld;
+};
 const isF = () => !!view && view.mode === 'fizika';
 const W = () => (isF() ? getF() : world);
 let gameMode = store.get('taba.mode') === 'fizika' ? 'fizika' : 'tori';
@@ -83,7 +93,7 @@ const myName = () => {
   return n;
 };
 function show(id) {
-  for (const s of ['menu', 'lobby', 'end', 'help', 'shop']) $(s).hidden = s !== id;
+  for (const s of ['menu', 'lobby', 'end', 'help', 'shop', 'settings']) $(s).hidden = s !== id;
 }
 function menuMsg(t) { $('menuMsg').textContent = t || ''; $('menuMsg').hidden = !t; }
 
@@ -203,9 +213,72 @@ $('btnJoin').onclick = () => {
   n.onClose = () => { if (net === n) { leave(); menuMsg('A szoba megszűnt (a gazdája kilépett).'); } };
 };
 $('btnHelp').onclick = () => show('help');
+
+// ---- beállítások képernyő ---------------------------------------------------
+let setFrom = 'menu';
+const aaAtStart = settings.antialias;
+function applySettings(save = true) {
+  const dirty = applyRenderer(world.renderer, settings);
+  world.setQuality(settings, dirty);
+  if (fworld) fworld.setQuality(settings, dirty);
+  setVolumes({ master: settings.master, music: settings.music, sfx: settings.sfx });
+  setMusicEnabled(musicOn && settings.music > 0);
+  ctl.sens = settings.sens;
+  $('fps').hidden = !settings.fps;
+  if (save) store.set('taba.settings', JSON.stringify(settings));
+}
+function renderSettings() {
+  for (const b of $('presets').children) b.classList.toggle('on', b.dataset.p === settings.preset);
+  $('presetHint').textContent = settings.preset === 'custom' ? 'Egyéni beállítás.' : {
+    low: 'Gyengébb telefonokra: kisebb felbontás, egyszerű fények.',
+    mid: 'Kiegyensúlyozott: szebb színek, árnyékok nélkül.',
+    high: 'Valódi árnyékok, lámpafények – erősebb telefonokra.',
+    ultra: 'Lágy, részletes árnyékok és nagyobb felbontás – csak erős készülékre.',
+  }[settings.preset];
+  $('optShadows').value = String(settings.shadows);
+  $('optPretty').checked = settings.pretty;
+  $('optFog').checked = settings.fog;
+  $('optRes').value = Math.round(settings.res * 100); $('vRes').textContent = Math.round(settings.res * 100) + '%';
+  $('optFov').value = settings.fov; $('vFov').textContent = settings.fov + '°';
+  $('optAA').checked = settings.antialias;
+  $('optFps').checked = settings.fps;
+  $('optMaster').value = Math.round(settings.master * 100); $('vMaster').textContent = Math.round(settings.master * 100) + '%';
+  $('optMusic').value = Math.round(settings.music * 100); $('vMusic').textContent = Math.round(settings.music * 100) + '%';
+  $('optSfx').value = Math.round(settings.sfx * 100); $('vSfx').textContent = Math.round(settings.sfx * 100) + '%';
+  $('optSens').value = Math.round(settings.sens * 100); $('vSens').textContent = settings.sens.toFixed(1) + '×';
+  $('btnSetReload').hidden = settings.antialias === aaAtStart;
+}
+for (const b of $('presets').children) b.onclick = () => { settings.preset = b.dataset.p; Object.assign(settings, PRESETS[b.dataset.p]); applySettings(); renderSettings(); };
+const bindOpt = (id, fn, gfx = true) => { $(id).addEventListener('input', () => { fn($(id)); if (gfx) settings.preset = 'custom'; applySettings(); renderSettings(); }); };
+bindOpt('optShadows', (e) => { settings.shadows = +e.value; });
+bindOpt('optPretty', (e) => { settings.pretty = e.checked; });
+bindOpt('optFog', (e) => { settings.fog = e.checked; });
+bindOpt('optRes', (e) => { settings.res = +e.value / 100; });
+bindOpt('optFov', (e) => { settings.fov = +e.value; }, false);
+bindOpt('optAA', (e) => { settings.antialias = e.checked; }, false);
+bindOpt('optFps', (e) => { settings.fps = e.checked; }, false);
+bindOpt('optMaster', (e) => { settings.master = +e.value / 100; }, false);
+bindOpt('optMusic', (e) => { settings.music = +e.value / 100; }, false);
+bindOpt('optSfx', (e) => { settings.sfx = +e.value / 100; play('pick'); }, false);
+bindOpt('optSens', (e) => { settings.sens = +e.value / 100; }, false);
+function openSettings() {
+  unlockAudio();
+  setFrom = mode === 'play' ? 'play' : mode === 'lobby' ? 'lobby' : 'menu';
+  if (setFrom === 'play') { ctl.enabled = false; ctl.release(); setAct(false); }
+  renderSettings();
+  show('settings');
+}
+$('btnSettingsMenu').onclick = openSettings;
+$('btnSettings').onclick = openSettings;
+$('btnSetClose').onclick = () => {
+  if (setFrom === 'play' && mode === 'play') { show(null); ctl.enabled = true; }
+  else show(mode === 'lobby' ? 'lobby' : mode === 'end' ? 'end' : 'menu');
+};
+$('btnSetReload').onclick = () => location.reload();
 const musicLabel = () => { $('btnMusic').textContent = 'Zene: ' + (musicOn ? 'be' : 'ki'); };
-$('btnMusic').onclick = () => { musicOn = !musicOn; setMusicEnabled(musicOn); store.set('taba.music', musicOn ? '1' : '0'); musicLabel(); unlockAudio(); };
+$('btnMusic').onclick = () => { musicOn = !musicOn; store.set('taba.music', musicOn ? '1' : '0'); musicLabel(); unlockAudio(); setMusicEnabled(musicOn && settings.music > 0); };
 musicLabel();
+applySettings(false);
 
 // ---- bolt ---------------------------------------------------------------
 function renderShop() {
@@ -1092,9 +1165,14 @@ function tickSim(now) {
 }
 
 let last = performance.now();
+let fpsN = 0, fpsT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000);
+  if (settings.fps) {
+    fpsN++; fpsT += now - last;
+    if (fpsT > 500) { $('fps').textContent = Math.round((fpsN * 1000) / fpsT) + ' FPS'; fpsN = 0; fpsT = 0; }
+  }
   last = now;
   const t = now / 1000;
   tickSim(now);
